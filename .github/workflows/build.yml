@@ -10,16 +10,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Set up JDK 17
+    - name: Set up JDK 11
       uses: actions/setup-java@v4
       with:
-        java-version: '17'
+        java-version: '11'
         distribution: 'temurin'
 
-    - name: Create Native Android Project
+    - name: Clean Workspace & Setup Project
       run: |
+        rm -rf * .github/workflows/*
+        mkdir -p .github/workflows
         mkdir -p app/src/main/java/com/example/autoclicker
         mkdir -p app/src/main/res/xml
+        mkdir -p gradle/wrapper
 
         cat << 'EOF' > settings.gradle
         rootProject.name = "AutoClickerApp"
@@ -33,7 +36,7 @@ jobs:
                 mavenCentral()
             }
             dependencies {
-                classpath 'com.android.tools.build:gradle:7.4.2'
+                classpath 'com.android.tools.build:gradle:7.0.4'
             }
         }
         allprojects {
@@ -45,36 +48,38 @@ jobs:
         EOF
 
         cat << 'EOF' > app/build.gradle
-        apply plugin: 'com.android.application'
+        plugins {
+            id 'com.android.application'
+        }
 
         android {
-            namespace 'com.example.autoclicker'
-            compileSdkVersion 33
+            compileSdkVersion 31
 
             defaultConfig {
                 applicationId "com.example.autoclicker"
                 minSdkVersion 24
-                targetSdkVersion 33
+                targetSdkVersion 31
                 versionCode 1
                 versionName "1.0"
             }
         }
 
         dependencies {
-            implementation 'androidx.appcompat:appcompat:1.6.1'
+            implementation 'androidx.appcompat:appcompat:1.4.1'
         }
         EOF
 
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
-        <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+        <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+            package="com.example.autoclicker">
             <application
                 android:allowBackup="true"
                 android:label="Auto Clicker"
                 android:supportsRtl="true"
                 android:theme="@android:style/Theme.DeviceDefault">
                 <service
-                    android:name="com.example.autoclicker.AutoClickService"
+                    android:name=".AutoClickService"
                     android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
                     android:exported="true">
                     <intent-filter>
@@ -102,7 +107,7 @@ jobs:
         package com.example.autoclicker;
 
         import android.accessibilityservice.AccessibilityService;
-        import android.view.accessibility.AccessibilityEvent;
+         grand import android.view.accessibility.AccessibilityEvent;
         import android.view.accessibility.AccessibilityNodeInfo;
         import java.util.List;
 
@@ -145,16 +150,28 @@ jobs:
         }
         EOF
 
-    - name: Generate Wrapper & Build APK
+        cat << 'EOF' > gradle/wrapper/gradle-wrapper.properties
+        distributionBase=GRADLE_USER_HOME
+        distributionPath=wrapper/dists
+        distributionUrl=https\://services.gradle.org/distributions/gradle-7.0.2-bin.zip
+        zipStoreBase=GRADLE_USER_HOME
+        zipStorePath=wrapper/dists
+        EOF
+
+    - name: Setup Gradle Executable
       run: |
-        gradle wrapper --gradle-version 7.5
-        ./gradlew assembleDebug
+        curl -sL https://github.com/gradle/gradle-build-action/raw/main/src/wrapper/gradlew -o gradlew
+        chmod +x gradlew
+
+    - name: Build Debug APK
+      run: ./gradlew assembleDebug
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: AutoClicker-APK
         path: app/build/outputs/apk/debug/*.apk
+
 
 
 
