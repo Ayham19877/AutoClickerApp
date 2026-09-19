@@ -82,8 +82,8 @@ jobs:
                 applicationId "com.example.autoclicker"
                 minSdk 24
                 targetSdk 33
-                versionCode 10
-                versionName "10.0"
+                versionCode 11
+                versionName "11.0"
             }
 
             compileOptions {
@@ -98,25 +98,11 @@ jobs:
         }
         EOF
 
-    - name: Generate Icon Images From Embedded Base64
+    - name: Generate Icon Images
       run: |
         cat << 'EOF' > make_icons.py
-        import base64
-        import io
-        from PIL import Image
+        from PIL import Image, ImageDraw
 
-        # SVG/PNG icon representation generated for Auto Clicker icon
-        icon_svg = '''<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-          <rect width="512" height="512" rx="120" fill="#1E1B4B"/>
-          <circle cx="256" cy="256" r="180" fill="#312E81" stroke="#6366F1" stroke-width="12"/>
-          <path d="M 210 130 L 210 320 L 260 270 L 300 360 L 340 340 L 300 250 L 370 250 Z" fill="#F43F5E" stroke="#FFFFFF" stroke-width="10" stroke-linejoin="round"/>
-          <circle cx="256" cy="110" r="16" fill="#60A5FA"/>
-          <circle cx="390" cy="256" r="16" fill="#60A5FA"/>
-          <circle cx="256" cy="402" r="16" fill="#60A5FA"/>
-          <circle cx="122" cy="256" r="16" fill="#60A5FA"/>
-        </svg>'''
-
-        # Create simple custom launcher icon
         sizes = {
             'mipmap-mdpi': 48,
             'mipmap-hdpi': 72,
@@ -125,16 +111,12 @@ jobs:
             'mipmap-xxxhdpi': 192
         }
 
-        # Generate smooth icons
         for folder, sz in sizes.items():
             img = Image.new('RGBA', (sz, sz), color=(30, 27, 75, 255))
-            # Draw cursor representation
-            from PIL import ImageDraw
             draw = ImageDraw.Draw(img)
             pad = sz // 8
             draw.rectangle([pad, pad, sz - pad, sz - pad], fill=(49, 46, 129), outline=(99, 102, 241), width=max(1, sz//24))
             
-            # Target cross/cursor symbol inside
             cx, cy = sz // 2, sz // 2
             r = sz // 4
             draw.ellipse([cx - r, cy - r, cx + r, cy + r], outline=(244, 63, 94), width=max(2, sz//16))
@@ -143,7 +125,7 @@ jobs:
             img.save(f'app/src/main/res/{folder}/ic_launcher.png', 'PNG')
             img.save(f'app/src/main/res/{folder}/ic_launcher_round.png', 'PNG')
 
-        print("Successfully generated custom app icons for all densities!")
+        print("Generated launcher icons!")
         EOF
         python make_icons.py
 
@@ -204,8 +186,8 @@ jobs:
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="تطبيق النقر التلقائي الفائق"
-                    android:textSize="22sp"
+                    android:text="تطبيق النقر التلقائي الفائق (فائق السرعة)"
+                    android:textSize="20sp"
                     android:textStyle="bold"/>
 
                 <TextView
@@ -225,7 +207,6 @@ jobs:
                     android:textColor="#555555"
                     android:layout_marginBottom="16dp"/>
 
-                <!-- مفتاح التفعيل الرئيسي -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -249,7 +230,6 @@ jobs:
                         android:layout_height="wrap_content"/>
                 </LinearLayout>
 
-                <!-- مفتاح التنبيه الصوتي عند الكشف -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -272,7 +252,6 @@ jobs:
                         android:layout_height="wrap_content"/>
                 </LinearLayout>
 
-                <!-- زر اختيار النغمة -->
                 <Button
                     android:id="@+id/btnSelectRingtone"
                     android:layout_width="match_parent"
@@ -282,7 +261,6 @@ jobs:
                     android:textColor="#FFFFFF"
                     android:layout_marginBottom="10dp"/>
 
-                <!-- مفتاح الإشعارات عند الكشف -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -345,13 +323,6 @@ jobs:
                     android:textSize="12sp"
                     android:textColor="#757575"/>
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="turky.jadou@gmail.com"
-                    android:textSize="11sp"
-                    android:textColor="#9E9E9E"/>
-
             </LinearLayout>
         </ScrollView>
         EOF
@@ -359,9 +330,9 @@ jobs:
         cat << 'EOF' > app/src/main/res/xml/accessibility_service_config.xml
         <?xml version="1.0" encoding="utf-8"?>
         <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
-            android:accessibilityEventTypes="typeAllMask"
+            android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged"
             android:accessibilityFeedbackType="feedbackGeneric"
-            android:accessibilityFlags="flagDefault|flagRetrieveInteractiveWindows|flagIncludeNotImportantViews"
+            android:accessibilityFlags="flagDefault|flagRetrieveInteractiveWindows"
             android:canRetrieveWindowContent="true"
             android:canPerformGestures="true"
             android:notificationTimeout="0" />
@@ -474,6 +445,7 @@ jobs:
         import android.view.accessibility.AccessibilityEvent;
         import android.view.accessibility.AccessibilityNodeInfo;
         import androidx.core.app.NotificationCompat;
+        import java.util.List;
         import java.util.concurrent.ExecutorService;
         import java.util.concurrent.Executors;
 
@@ -481,17 +453,21 @@ jobs:
 
             private int currentStep = 0;
             private static final String CHANNEL_ID = "AutoClickerChannel";
-            private final ExecutorService executor = Executors.newSingleThreadExecutor();
+            private final ExecutorService asyncExecutor = Executors.newSingleThreadExecutor();
+            private long lastClickTime = 0;
 
             @Override
             public void onAccessibilityEvent(AccessibilityEvent event) {
+                // منع التكرار السريع جداً خلال أقل من 100 مللي ثانية
+                long currentTime = System.currentTimeMillis();
+                if (currentTime - lastClickTime < 100) return;
+
                 CharSequence packageName = event.getPackageName();
                 if (packageName != null && packageName.toString().equals("com.example.autoclicker")) {
                     return;
                 }
 
                 SharedPreferences prefs = getSharedPreferences("AutoClickerPrefs", MODE_PRIVATE);
-
                 if (!prefs.getBoolean("is_enabled", true)) return;
 
                 String rawWords = prefs.getString("words_list", "");
@@ -501,62 +477,51 @@ jobs:
                 if (words.length == 0) return;
 
                 if (currentStep >= words.length) currentStep = 0;
-
                 String targetWord = words[currentStep].trim();
                 if (targetWord.isEmpty()) return;
 
                 AccessibilityNodeInfo rootNode = getRootInActiveWindow();
                 if (rootNode == null) return;
 
-                CharSequence rootPackage = rootNode.getPackageName();
-                if (rootPackage != null && rootPackage.toString().equals("com.example.autoclicker")) {
-                    rootNode.recycle();
-                    return;
-                }
+                // البحث السريع عبر النظام
+                List<AccessibilityNodeInfo> foundNodes = rootNode.findAccessibilityNodeInfosByText(targetWord);
+                if (foundNodes != null && !foundNodes.isEmpty()) {
+                    for (AccessibilityNodeInfo node : foundNodes) {
+                        if (node != null && node.isVisibleToUser()) {
+                            // تنفيذ الكبسة فوراً
+                            executeFastClick(node);
+                            lastClickTime = System.currentTimeMillis();
+                            currentStep++;
+                            if (currentStep >= words.length) currentStep = 0;
 
-                if (scanAndClick(rootNode, targetWord, prefs)) {
-                    currentStep++;
-                    if (currentStep >= words.length) currentStep = 0;
+                            // تشغيل الصوت والإشعار في خيط منفصل كي لا يتأخر الكليك
+                            final boolean soundOn = prefs.getBoolean("sound_enabled", true);
+                            final boolean notifOn = prefs.getBoolean("notification_enabled", true);
+                            final String soundUriStr = prefs.getString("custom_sound_uri", null);
+                            final String wordMatched = targetWord;
+
+                            asyncExecutor.execute(() -> {
+                                if (soundOn) playCustomSound(soundUriStr);
+                                if (notifOn) sendNotification(wordMatched);
+                            });
+                            break;
+                        }
+                    }
                 }
                 rootNode.recycle();
             }
 
-            private boolean scanAndClick(AccessibilityNodeInfo node, String targetText, SharedPreferences prefs) {
-                if (node == null) return false;
-
-                CharSequence text = node.getText();
-                CharSequence desc = node.getContentDescription();
-
-                boolean matchText = text != null && text.toString().toLowerCase().contains(targetText.toLowerCase());
-                boolean matchDesc = desc != null && desc.toString().toLowerCase().contains(targetText.toLowerCase());
-
-                if (matchText || matchDesc) {
-                    final boolean soundOn = prefs.getBoolean("sound_enabled", true);
-                    final boolean notifOn = prefs.getBoolean("notification_enabled", true);
-                    final String matchedWord = targetText;
-                    final String soundUriStr = prefs.getString("custom_sound_uri", null);
-
-                    executor.execute(() -> {
-                        if (soundOn) playCustomSound(soundUriStr);
-                        if (notifOn) sendNotification(matchedWord);
-                    });
-
-                    boolean clicked = node.performAction(AccessibilityNodeInfo.ACTION_CLICK);
-                    Rect rect = new Rect();
-                    node.getBoundsInScreen(rect);
-                    clickAt(rect.centerX(), rect.centerY());
-                    return true;
-                }
-
-                for (int i = 0; i < node.getChildCount(); i++) {
-                    AccessibilityNodeInfo child = node.getChild(i);
-                    if (child != null) {
-                        boolean clicked = scanAndClick(child, targetText, prefs);
-                        child.recycle();
-                        if (clicked) return true;
+            private void executeFastClick(AccessibilityNodeInfo node) {
+                // محاولة الكليك المباشر بجهة النظام
+                if (!node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                    if (node.getParent() != null && node.getParent().performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                        return;
                     }
                 }
-                return false;
+                // تنفيذ إيماءة اللمس بمللي ثانية واحدة
+                Rect rect = new Rect();
+                node.getBoundsInScreen(rect);
+                clickAt(rect.centerX(), rect.centerY());
             }
 
             private void clickAt(int x, int y) {
@@ -591,8 +556,8 @@ jobs:
 
                 NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                         .setSmallIcon(android.R.drawable.stat_notify_chat)
-                        .setContentTitle("برمجة الأيهم - ظهرت الكلمة المطلوبة!")
-                        .setContentText("تم كشف الكلمة: " + word)
+                        .setContentTitle("برمجة الأيهم - تم النقر بنجاح!")
+                        .setContentText("تم كشف والنقر على: " + word)
                         .setPriority(NotificationCompat.PRIORITY_HIGH)
                         .setAutoCancel(true);
 
@@ -617,6 +582,6 @@ jobs:
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: AutoClicker-APK
+        name: AutoClicker-Fast-APK
         path: app/build/outputs/apk/debug/*.apk
 
