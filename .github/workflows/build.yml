@@ -10,20 +10,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Accept Android Licenses
+    - name: Clean Workspace & Setup Project Files
       run: |
-        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
-
-    - name: Clean Workspace & Setup Project
-      run: |
-        rm -rf * .github/workflows/*
-        mkdir -p .github/workflows
+        rm -rf app settings.gradle build.gradle gradlew gradlew.bat gradle
         mkdir -p app/src/main/java/com/example/autoclicker
         mkdir -p app/src/main/res/xml
 
@@ -160,17 +158,17 @@ jobs:
         }
         EOF
 
-    - name: Build Gradle Wrapper & APK
-      run: |
-        gradle wrapper --gradle-version 8.1.1
-        ./gradlew assembleDebug
+    - name: Setup & Build with Gradle
+      uses: gradle/gradle-build-action@v3
+      with:
+        gradle-version: 8.1.1
+        arguments: assembleDebug
 
-    - name: Upload APK
+    - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
         name: AutoClicker-APK
         path: app/build/outputs/apk/debug/*.apk
-
 
 
 
