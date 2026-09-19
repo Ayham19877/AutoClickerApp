@@ -16,13 +16,15 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Clean Workspace & Build Project Files
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Clean Workspace & Setup Project
       run: |
         rm -rf * .github/workflows/*
         mkdir -p .github/workflows
         mkdir -p app/src/main/java/com/example/autoclicker
         mkdir -p app/src/main/res/xml
-        mkdir -p gradle/wrapper
 
         cat << 'EOF' > settings.gradle
         pluginManagement {
@@ -157,32 +159,20 @@ jobs:
         }
         EOF
 
-        cat << 'EOF' > gradle/wrapper/gradle-wrapper.properties
-        distributionBase=GRADLE_USER_HOME
-        distributionPath=wrapper/dists
-        distributionUrl=https\://services.gradle.org/distributions/gradle-8.0-bin.zip
-        zipStoreBase=GRADLE_USER_HOME
-        zipStorePath=wrapper/dists
-        EOF
-
-    - name: Install Standalone Gradle Wrapper
-      run: |
-        wget https://raw.githubusercontent.com/gradle/gradle/v8.0.0/gradle/wrapper/gradle-wrapper.jar -O gradle/wrapper/gradle-wrapper.jar
-        cat << 'EOF' > gradlew
-        #!/bin/sh
-        DIR=$(dirname "$0")
-        exec java -jar "$DIR/gradle/wrapper/gradle-wrapper.jar" "$@"
-        EOF
-        chmod +x gradlew
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
+      with:
+        gradle-version: '8.1.1'
 
     - name: Build Debug APK
-      run: ./gradlew assembleDebug
+      run: gradle assembleDebug
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: AutoClicker-APK
         path: app/build/outputs/apk/debug/*.apk
+
 
 
 
