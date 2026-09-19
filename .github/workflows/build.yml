@@ -68,8 +68,8 @@ jobs:
                 applicationId "com.example.autoclicker"
                 minSdk 24
                 targetSdk 33
-                versionCode 1
-                versionName "1.0"
+                versionCode 2
+                versionName "2.0"
             }
 
             compileOptions {
@@ -109,17 +109,21 @@ jobs:
         cat << 'EOF' > app/src/main/res/xml/accessibility_service_config.xml
         <?xml version="1.0" encoding="utf-8"?>
         <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
-            android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged"
+            android:accessibilityEventTypes="typeAllMask"
             android:accessibilityFeedbackType="feedbackGeneric"
-            android:accessibilityFlags="flagDefault"
+            android:accessibilityFlags="flagDefault|flagRetrieveInteractiveWindows|flagIncludeNotImportantViews"
             android:canRetrieveWindowContent="true"
-            android:notificationTimeout="10" />
+            android:canPerformGestures="true"
+            android:notificationTimeout="0" />
         EOF
 
         cat << 'EOF' > app/src/main/java/com/example/autoclicker/AutoClickService.java
         package com.example.autoclicker;
 
         import android.accessibilityservice.AccessibilityService;
+        import android.accessibilityservice.GestureDescription;
+        import android.graphics.Path;
+        import android.graphics.Rect;
         import android.view.accessibility.AccessibilityEvent;
         import android.view.accessibility.AccessibilityNodeInfo;
         import java.util.List;
@@ -130,32 +134,46 @@ jobs:
 
             @Override
             public void onAccessibilityEvent(AccessibilityEvent event) {
-                if (event == null) return;
                 AccessibilityNodeInfo rootNode = getRootInActiveWindow();
                 if (rootNode == null) return;
 
-                List<AccessibilityNodeInfo> nodes = rootNode.findAccessibilityNodeInfosByText(TARGET_TEXT);
-                if (nodes != null && !nodes.isEmpty()) {
-                    for (AccessibilityNodeInfo node : nodes) {
-                        if (node.getText() != null && node.getText().toString().toLowerCase().contains(TARGET_TEXT.toLowerCase())) {
-                            if (!clickNodeOrParent(node)) {
-                                node.performAction(AccessibilityNodeInfo.ACTION_CLICK);
-                            }
-                            break;
-                        }
+                scanAndClick(rootNode);
+                rootNode.recycle();
+            }
+
+            private void scanAndClick(AccessibilityNodeInfo node) {
+                if (node == null) return;
+
+                CharSequence text = node.getText();
+                CharSequence desc = node.getContentDescription();
+
+                boolean matchText = text != null && text.toString().equalsIgnoreCase(TARGET_TEXT);
+                boolean matchDesc = desc != null && desc.toString().equalsIgnoreCase(TARGET_TEXT);
+
+                if (matchText || matchDesc) {
+                    if (!node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                        Rect rect = new Rect();
+                        node.getBoundsInScreen(rect);
+                        clickAt(rect.centerX(), rect.centerY());
+                    }
+                    return;
+                }
+
+                for (int i = 0; i < node.getChildCount(); i++) {
+                    AccessibilityNodeInfo child = node.getChild(i);
+                    if (child != null) {
+                        scanAndClick(child);
+                        child.recycle();
                     }
                 }
             }
 
-            private boolean clickNodeOrParent(AccessibilityNodeInfo node) {
-                AccessibilityNodeInfo current = node;
-                while (current != null) {
-                    if (current.isClickable()) {
-                        return current.performAction(AccessibilityNodeInfo.ACTION_CLICK);
-                    }
-                    current = current.getParent();
-                }
-                return false;
+            private void clickAt(int x, int y) {
+                Path path = new Path();
+                path.moveTo(x, y);
+                GestureDescription.Builder builder = new GestureDescription.Builder();
+                GestureDescription gesture = builder.addStroke(new GestureDescription.StrokeDescription(path, 0, 1)).build();
+                dispatchGesture(gesture, null, null);
             }
 
             @Override
