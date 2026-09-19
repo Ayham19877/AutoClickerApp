@@ -69,8 +69,8 @@ jobs:
                 applicationId "com.example.autoclicker"
                 minSdk 24
                 targetSdk 33
-                versionCode 5
-                versionName "5.0"
+                versionCode 7
+                versionName "7.0"
             }
 
             compileOptions {
@@ -88,6 +88,9 @@ jobs:
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+            <uses-permission android:name="android.permission.VIBRATE" />
+
             <application
                 android:allowBackup="true"
                 android:label="Auto Clicker"
@@ -120,77 +123,146 @@ jobs:
 
         cat << 'EOF' > app/src/main/res/layout/activity_main.xml
         <?xml version="1.0" encoding="utf-8"?>
-        <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+        <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:orientation="vertical"
-            android:padding="24dp"
-            android:gravity="center_horizontal">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="إعدادات النقر التلقائي"
-                android:textSize="22sp"
-                android:textStyle="bold"
-                android:layout_marginBottom="20dp"/>
+            android:fillViewport="true">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:padding="12dp"
-                android:background="#F0F0F0"
-                android:layout_marginBottom="20dp">
+                android:orientation="vertical"
+                android:padding="20dp"
+                android:gravity="center_horizontal">
 
                 <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="تفعيل / إيقاف التلقائي:"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
-
-                <androidx.appcompat.widget.SwitchCompat
-                    android:id="@+id/switchEnable"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"/>
+                    android:layout_height="wrap_content"
+                    android:text="تطبيق النقر التلقائي الفائق"
+                    android:textSize="22sp"
+                    android:textStyle="bold"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="برمجة الأيهم"
+                    android:textSize="14sp"
+                    android:textColor="#3F51B5"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="16dp"/>
+
+                <!-- مفتاح التفعيل الرئيسي -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:padding="12dp"
+                    android:background="#E8EAF6"
+                    android:layout_marginBottom="10dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="تفعيل / إيقاف التلقائي:"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
+
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/switchEnable"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"/>
+                </LinearLayout>
+
+                <!-- مفتاح التنبيه الصوتي -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:padding="12dp"
+                    android:background="#F5F5F5"
+                    android:layout_marginBottom="10dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="التنبيه الصوتي عند النقر:"
+                        android:textSize="15sp" />
+
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/switchSound"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"/>
+                </LinearLayout>
+
+                <!-- مفتاح الإشعارات -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:padding="12dp"
+                    android:background="#F5F5F5"
+                    android:layout_marginBottom="16dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="إرسال إشعار عند النقر:"
+                        android:textSize="15sp" />
+
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/switchNotification"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"/>
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="أدخل الكلمات وافصل بينها بفاصلة (، أو ,):"
+                    android:textSize="14sp"
+                    android:layout_marginBottom="8dp"/>
+
+                <EditText
+                    android:id="@+id/etWords"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="مثال: Accept, Confirm, Done"
+                    android:inputType="textMultiLine"
+                    android:minLines="2"
+                    android:padding="12dp"
+                    android:background="@android:drawable/editbox_background"
+                    android:layout_marginBottom="16dp"/>
+
+                <Button
+                    android:id="@+id/btnSave"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="حفظ التغييرات"
+                    android:layout_marginBottom="10dp"/>
+
+                <Button
+                    android:id="@+id/btnAccessibility"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="إعدادات إمكانية الوصول"
+                    android:backgroundTint="#4CAF50"
+                    android:layout_marginBottom="20dp"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="حقوق الطبع والتطوير © برمجة الأيهم"
+                    android:textSize="12sp"
+                    android:textColor="#757575"/>
+
             </LinearLayout>
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="أدخل الكلمات وافصل بينها بفاصلة (، أو ,) حسب الترتيب المطلوبة للضغط:"
-                android:textSize="14sp"
-                android:layout_marginBottom="8dp"/>
-
-            <EditText
-                android:id="@+id/etWords"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="مثال: Accept, Confirm, Done"
-                android:inputType="textMultiLine"
-                android:minLines="2"
-                android:padding="12dp"
-                android:background="@android:drawable/editbox_background"
-                android:layout_marginBottom="20dp"/>
-
-            <Button
-                android:id="@+id/btnSave"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="حفظ الكلمات"
-                android:layout_marginBottom="12dp"/>
-
-            <Button
-                android:id="@+id/btnAccessibility"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="إعدادات إمكانية الوصول (Accessibility)"
-                android:backgroundTint="#4CAF50"/>
-
-        </LinearLayout>
+        </ScrollView>
         EOF
 
         cat << 'EOF' > app/src/main/res/xml/accessibility_service_config.xml
@@ -220,7 +292,7 @@ jobs:
         public class MainActivity extends AppCompatActivity {
 
             private EditText etWords;
-            private SwitchCompat switchEnable;
+            private SwitchCompat switchEnable, switchSound, switchNotification;
             private SharedPreferences prefs;
 
             @Override
@@ -230,31 +302,28 @@ jobs:
 
                 etWords = findViewById(R.id.etWords);
                 switchEnable = findViewById(R.id.switchEnable);
+                switchSound = findViewById(R.id.switchSound);
+                switchNotification = findViewById(R.id.switchNotification);
+
                 Button btnSave = findViewById(R.id.btnSave);
                 Button btnAccessibility = findViewById(R.id.btnAccessibility);
 
                 prefs = getSharedPreferences("AutoClickerPrefs", MODE_PRIVATE);
-                
-                String savedWords = prefs.getString("words_list", "Accept, Confirm, Done");
-                boolean isEnabled = prefs.getBoolean("is_enabled", true);
 
-                etWords.setText(savedWords);
-                switchEnable.setChecked(isEnabled);
+                etWords.setText(prefs.getString("words_list", "Accept, Confirm, Done"));
+                switchEnable.setChecked(prefs.getBoolean("is_enabled", true));
+                switchSound.setChecked(prefs.getBoolean("sound_enabled", true));
+                switchNotification.setChecked(prefs.getBoolean("notification_enabled", true));
 
-                switchEnable.setOnCheckedChangeListener((buttonView, isChecked) -> {
-                    prefs.edit().putBoolean("is_enabled", isChecked).apply();
-                    if (isChecked) {
-                        Toast.makeText(MainActivity.this, "تم تشغيل الضغط التلقائي", Toast.LENGTH_SHORT).show();
-                    } else {
-                        Toast.makeText(MainActivity.this, "تم إيقاف الضغط التلقائي مؤقتاً", Toast.LENGTH_SHORT).show();
-                    }
-                });
+                switchEnable.setOnCheckedChangeListener((btn, isChecked) -> prefs.edit().putBoolean("is_enabled", isChecked).apply());
+                switchSound.setOnCheckedChangeListener((btn, isChecked) -> prefs.edit().putBoolean("sound_enabled", isChecked).apply());
+                switchNotification.setOnCheckedChangeListener((btn, isChecked) -> prefs.edit().putBoolean("notification_enabled", isChecked).apply());
 
                 btnSave.setOnClickListener(v -> {
                     String words = etWords.getText().toString().trim();
                     if (!words.isEmpty()) {
                         prefs.edit().putString("words_list", words).apply();
-                        Toast.makeText(MainActivity.this, "تم حفظ الكلمات بنجاح!", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(MainActivity.this, "تم حفظ الإعدادات بنجاح (برمجة الأيهم)", Toast.LENGTH_SHORT).show();
                     } else {
                         Toast.makeText(MainActivity.this, "الرجاء إدخال كلمة واحدة على الأقل", Toast.LENGTH_SHORT).show();
                     }
@@ -273,27 +342,33 @@ jobs:
 
         import android.accessibilityservice.AccessibilityService;
         import android.accessibilityservice.GestureDescription;
+        import android.app.NotificationChannel;
+        import android.app.NotificationManager;
+        import android.content.Context;
         import android.content.SharedPreferences;
         import android.graphics.Path;
         import android.graphics.Rect;
+        import android.media.Ringtone;
+        import android.media.RingtoneManager;
+        import android.net.Uri;
+        import android.os.Build;
         import android.view.accessibility.AccessibilityEvent;
         import android.view.accessibility.AccessibilityNodeInfo;
+        import androidx.core.app.NotificationCompat;
+        import java.util.concurrent.ExecutorService;
+        import java.util.concurrent.Executors;
 
         public class AutoClickService extends AccessibilityService {
 
             private int currentStep = 0;
-            private long lastClickTime = 0;
-            private static final long CLICK_DELAY = 150;
+            private static final String CHANNEL_ID = "AutoClickerChannel";
+            private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
             @Override
             public void onAccessibilityEvent(AccessibilityEvent event) {
                 SharedPreferences prefs = getSharedPreferences("AutoClickerPrefs", MODE_PRIVATE);
-                
-                boolean isEnabled = prefs.getBoolean("is_enabled", true);
-                if (!isEnabled) return; // متوقف مؤقتاً عند عدم التفعيل
 
-                long currentTime = System.currentTimeMillis();
-                if (currentTime - lastClickTime < CLICK_DELAY) return;
+                if (!prefs.getBoolean("is_enabled", true)) return;
 
                 String rawWords = prefs.getString("words_list", "");
                 if (rawWords.isEmpty()) return;
@@ -301,9 +376,7 @@ jobs:
                 String[] words = rawWords.split("[,،]");
                 if (words.length == 0) return;
 
-                if (currentStep >= words.length) {
-                    currentStep = 0;
-                }
+                if (currentStep >= words.length) currentStep = 0;
 
                 String targetWord = words[currentStep].trim();
                 if (targetWord.isEmpty()) return;
@@ -312,10 +385,28 @@ jobs:
                 if (rootNode == null) return;
 
                 if (scanAndClick(rootNode, targetWord)) {
-                    lastClickTime = currentTime;
+                    final boolean soundOn = prefs.getBoolean("sound_enabled", true);
+                    final boolean notifOn = prefs.getBoolean("notification_enabled", true);
+                    final String matchedWord = targetWord;
+
+                    // تنفيذ التنبيهات في الخلفية دون تعطيل محرك النقر المباشر
+                    executor.execute(() -> {
+                        if (soundOn) playSound();
+                        if (notifOn) sendNotification(matchedWord);
+                    });
+
                     currentStep++;
-                    if (currentStep >= words.length) {
-                        currentStep = 0;
+                    if (currentStep >= words.length) currentStep = 0;
+
+                    // فحص فوري وسريع للكلمة التالية في نفس التفاعل
+                    AccessibilityNodeInfo nextRoot = getRootInActiveWindow();
+                    if (nextRoot != null) {
+                        String nextWord = words[currentStep].trim();
+                        if (!nextWord.isEmpty() && scanAndClick(nextRoot, nextWord)) {
+                            currentStep++;
+                            if (currentStep >= words.length) currentStep = 0;
+                        }
+                        nextRoot.recycle();
                     }
                 }
                 rootNode.recycle();
@@ -331,11 +422,10 @@ jobs:
                 boolean matchDesc = desc != null && desc.toString().toLowerCase().contains(targetText.toLowerCase());
 
                 if (matchText || matchDesc) {
-                    if (!node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
-                        Rect rect = new Rect();
-                        node.getBoundsInScreen(rect);
-                        clickAt(rect.centerX(), rect.centerY());
-                    }
+                    boolean clicked = node.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                    Rect rect = new Rect();
+                    node.getBoundsInScreen(rect);
+                    clickAt(rect.centerX(), rect.centerY());
                     return true;
                 }
 
@@ -358,6 +448,35 @@ jobs:
                 dispatchGesture(gesture, null, null);
             }
 
+            private void playSound() {
+                try {
+                    Uri notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+                    Ringtone r = RingtoneManager.getRingtone(getApplicationContext(), notification);
+                    r.play();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+
+            private void sendNotification(String word) {
+                NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Auto Clicker Alerts", NotificationManager.IMPORTANCE_DEFAULT);
+                    if (manager != null) manager.createNotificationChannel(channel);
+                }
+
+                NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
+                        .setSmallIcon(android.R.drawable.stat_notify_chat)
+                        .setContentTitle("برمجة الأيهم - تم النقر تلقائياً")
+                        .setContentText("تم العثور والنقر على الكلمة: " + word)
+                        .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                        .setAutoCancel(true);
+
+                if (manager != null) {
+                    manager.notify((int) System.currentTimeMillis(), builder.build());
+                }
+            }
+
             @Override
             public void onInterrupt() {}
         }
@@ -376,6 +495,7 @@ jobs:
       with:
         name: AutoClicker-APK
         path: app/build/outputs/apk/debug/*.apk
+
 
 
 
