@@ -22,27 +22,30 @@ jobs:
         mkdir -p .github/workflows
         mkdir -p app/src/main/java/com/example/autoclicker
         mkdir -p app/src/main/res/xml
+        mkdir -p gradle/wrapper
 
         cat << 'EOF' > settings.gradle
+        pluginManagement {
+            repositories {
+                google()
+                mavenCentral()
+                gradlePluginPortal()
+            }
+        }
+        dependencyResolutionManagement {
+            repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+            repositories {
+                google()
+                mavenCentral()
+            }
+        }
         rootProject.name = "AutoClickerApp"
         include ':app'
         EOF
 
         cat << 'EOF' > build.gradle
-        buildscript {
-            repositories {
-                google()
-                mavenCentral()
-            }
-            dependencies {
-                classpath 'com.android.tools.build:gradle:7.4.2'
-            }
-        }
-        allprojects {
-            repositories {
-                google()
-                mavenCentral()
-            }
+        plugins {
+            id 'com.android.application' version '8.1.1' apply false
         }
         EOF
 
@@ -52,14 +55,20 @@ jobs:
         }
 
         android {
-            compileSdkVersion 33
+            namespace 'com.example.autoclicker'
+            compileSdk 33
 
             defaultConfig {
                 applicationId "com.example.autoclicker"
-                minSdkVersion 24
-                targetSdkVersion 33
+                minSdk 24
+                targetSdk 33
                 versionCode 1
                 versionName "1.0"
+            }
+
+            compileOptions {
+                sourceCompatibility JavaVersion.VERSION_17
+                targetCompatibility JavaVersion.VERSION_17
             }
         }
 
@@ -70,8 +79,7 @@ jobs:
 
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
-        <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-            package="com.example.autoclicker">
+        <manifest xmlns:android="http://schemas.android.com/apk/res/android">
             <application
                 android:allowBackup="true"
                 android:label="Auto Clicker"
@@ -149,6 +157,17 @@ jobs:
         }
         EOF
 
+        cat << 'EOF' > gradle/wrapper/gradle-wrapper.properties
+        distributionBase=GRADLE_USER_HOME
+        distributionPath=wrapper/dists
+        distributionUrl=https\://services.gradle.org/distributions/gradle-8.0-bin.zip
+        zipStoreBase=GRADLE_USER_HOME
+        zipStorePath=wrapper/dists
+        EOF
+
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
+
     - name: Build Debug APK
       run: gradle assembleDebug
 
@@ -157,6 +176,7 @@ jobs:
       with:
         name: AutoClicker-APK
         path: app/build/outputs/apk/debug/*.apk
+
 
 
 
