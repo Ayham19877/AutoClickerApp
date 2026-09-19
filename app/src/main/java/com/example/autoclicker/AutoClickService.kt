@@ -1,42 +1,24 @@
-package com.example.autoclicker
+// دالة شاملة للبحث عن الكلمة في جميع عقد الشاشة بلغة Kotlin
+private fun findNodeByTextRecursive(node: AccessibilityNodeInfo?, targetText: String): AccessibilityNodeInfo? {
+    if (node == null) return null
 
-import android.accessibilityservice.AccessibilityService
-import android.view.accessibility.AccessibilityEvent
-import android.view.accessibility.AccessibilityNodeInfo
+    val text = node.text
+    val desc = node.contentDescription
+    val targetUpper = targetText.uppercase().trim()
 
-class AutoClickService : AccessibilityService() {
-
-    // اكتب الكلمة المطلوبة للنقر عليها فور ظهورها
-    private val TARGET_TEXT = "Accept"
-
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (event == null) return
-        val rootNode = rootInActiveWindow ?: return
-
-        val nodes = rootNode.findAccessibilityNodeInfosByText(TARGET_TEXT)
-        if (nodes != null && nodes.isNotEmpty()) {
-            for (node in nodes) {
-                if (node.text != null && node.text.toString().contains(TARGET_TEXT, ignoreCase = true)) {
-                    if (!clickNodeOrParent(node)) {
-                        node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                    }
-                    break
-                }
-            }
+    if ((text != null && text.toString().uppercase().contains(targetUpper)) ||
+        (desc != null && desc.toString().uppercase().contains(targetUpper))) {
+        if (node.isClickable || (node.parent != null && node.parent.isClickable)) {
+            return node
         }
     }
 
-    private fun clickNodeOrParent(node: AccessibilityNodeInfo?): Boolean {
-        var current = node
-        while (current != null) {
-            if (current.isClickable) {
-                return current.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-            }
-            current = current.parent
+    for (i in 0 until node.childCount) {
+        val child = node.getChild(i)
+        val result = findNodeByTextRecursive(child, targetText)
+        if (result != null) {
+            return result
         }
-        return false
     }
-
-    override fun onInterrupt() {}
+    return null
 }
-
