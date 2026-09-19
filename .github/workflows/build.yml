@@ -23,6 +23,7 @@ jobs:
       run: |
         rm -rf app settings.gradle build.gradle gradle.properties gradlew gradlew.bat gradle
         mkdir -p app/src/main/java/com/example/autoclicker
+        mkdir -p app/src/main/res/layout
         mkdir -p app/src/main/res/xml
 
         cat << 'EOF' > gradle.properties
@@ -68,8 +69,8 @@ jobs:
                 applicationId "com.example.autoclicker"
                 minSdk 24
                 targetSdk 33
-                versionCode 2
-                versionName "2.0"
+                versionCode 5
+                versionName "5.0"
             }
 
             compileOptions {
@@ -80,6 +81,7 @@ jobs:
 
         dependencies {
             implementation 'androidx.appcompat:appcompat:1.6.1'
+            implementation 'com.google.android.material:material:1.9.0'
         }
         EOF
 
@@ -90,7 +92,17 @@ jobs:
                 android:allowBackup="true"
                 android:label="Auto Clicker"
                 android:supportsRtl="true"
-                android:theme="@android:style/Theme.DeviceDefault">
+                android:theme="@style/Theme.AppCompat.Light.DarkActionBar">
+                
+                <activity
+                    android:name=".MainActivity"
+                    android:exported="true">
+                    <intent-filter>
+                        <action android:name="android.intent.action.MAIN" />
+                        <category android:name="android.intent.category.LAUNCHER" />
+                    </intent-filter>
+                </activity>
+
                 <service
                     android:name=".AutoClickService"
                     android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
@@ -106,6 +118,81 @@ jobs:
         </manifest>
         EOF
 
+        cat << 'EOF' > app/src/main/res/layout/activity_main.xml
+        <?xml version="1.0" encoding="utf-8"?>
+        <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:padding="24dp"
+            android:gravity="center_horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="إعدادات النقر التلقائي"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="20dp"/>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:padding="12dp"
+                android:background="#F0F0F0"
+                android:layout_marginBottom="20dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="تفعيل / إيقاف التلقائي:"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/switchEnable"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"/>
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="أدخل الكلمات وافصل بينها بفاصلة (، أو ,) حسب الترتيب المطلوبة للضغط:"
+                android:textSize="14sp"
+                android:layout_marginBottom="8dp"/>
+
+            <EditText
+                android:id="@+id/etWords"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="مثال: Accept, Confirm, Done"
+                android:inputType="textMultiLine"
+                android:minLines="2"
+                android:padding="12dp"
+                android:background="@android:drawable/editbox_background"
+                android:layout_marginBottom="20dp"/>
+
+            <Button
+                android:id="@+id/btnSave"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="حفظ الكلمات"
+                android:layout_marginBottom="12dp"/>
+
+            <Button
+                android:id="@+id/btnAccessibility"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="إعدادات إمكانية الوصول (Accessibility)"
+                android:backgroundTint="#4CAF50"/>
+
+        </LinearLayout>
+        EOF
+
         cat << 'EOF' > app/src/main/res/xml/accessibility_service_config.xml
         <?xml version="1.0" encoding="utf-8"?>
         <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
@@ -117,38 +204,131 @@ jobs:
             android:notificationTimeout="0" />
         EOF
 
+        cat << 'EOF' > app/src/main/java/com/example/autoclicker/MainActivity.java
+        package com.example.autoclicker;
+
+        import android.content.Intent;
+        import android.content.SharedPreferences;
+        import android.os.Bundle;
+        import android.provider.Settings;
+        import android.widget.Button;
+        import android.widget.EditText;
+        import android.widget.Toast;
+        import androidx.appcompat.app.AppCompatActivity;
+        import androidx.appcompat.widget.SwitchCompat;
+
+        public class MainActivity extends AppCompatActivity {
+
+            private EditText etWords;
+            private SwitchCompat switchEnable;
+            private SharedPreferences prefs;
+
+            @Override
+            protected void onCreate(Bundle savedInstanceState) {
+                super.onCreate(savedInstanceState);
+                setContentView(R.layout.activity_main);
+
+                etWords = findViewById(R.id.etWords);
+                switchEnable = findViewById(R.id.switchEnable);
+                Button btnSave = findViewById(R.id.btnSave);
+                Button btnAccessibility = findViewById(R.id.btnAccessibility);
+
+                prefs = getSharedPreferences("AutoClickerPrefs", MODE_PRIVATE);
+                
+                String savedWords = prefs.getString("words_list", "Accept, Confirm, Done");
+                boolean isEnabled = prefs.getBoolean("is_enabled", true);
+
+                etWords.setText(savedWords);
+                switchEnable.setChecked(isEnabled);
+
+                switchEnable.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                    prefs.edit().putBoolean("is_enabled", isChecked).apply();
+                    if (isChecked) {
+                        Toast.makeText(MainActivity.this, "تم تشغيل الضغط التلقائي", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(MainActivity.this, "تم إيقاف الضغط التلقائي مؤقتاً", Toast.LENGTH_SHORT).show();
+                    }
+                });
+
+                btnSave.setOnClickListener(v -> {
+                    String words = etWords.getText().toString().trim();
+                    if (!words.isEmpty()) {
+                        prefs.edit().putString("words_list", words).apply();
+                        Toast.makeText(MainActivity.this, "تم حفظ الكلمات بنجاح!", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(MainActivity.this, "الرجاء إدخال كلمة واحدة على الأقل", Toast.LENGTH_SHORT).show();
+                    }
+                });
+
+                btnAccessibility.setOnClickListener(v -> {
+                    Intent intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
+                    startActivity(intent);
+                });
+            }
+        }
+        EOF
+
         cat << 'EOF' > app/src/main/java/com/example/autoclicker/AutoClickService.java
         package com.example.autoclicker;
 
         import android.accessibilityservice.AccessibilityService;
         import android.accessibilityservice.GestureDescription;
+        import android.content.SharedPreferences;
         import android.graphics.Path;
         import android.graphics.Rect;
         import android.view.accessibility.AccessibilityEvent;
         import android.view.accessibility.AccessibilityNodeInfo;
-        import java.util.List;
 
         public class AutoClickService extends AccessibilityService {
 
-            private static final String TARGET_TEXT = "Accept";
+            private int currentStep = 0;
+            private long lastClickTime = 0;
+            private static final long CLICK_DELAY = 150;
 
             @Override
             public void onAccessibilityEvent(AccessibilityEvent event) {
+                SharedPreferences prefs = getSharedPreferences("AutoClickerPrefs", MODE_PRIVATE);
+                
+                boolean isEnabled = prefs.getBoolean("is_enabled", true);
+                if (!isEnabled) return; // متوقف مؤقتاً عند عدم التفعيل
+
+                long currentTime = System.currentTimeMillis();
+                if (currentTime - lastClickTime < CLICK_DELAY) return;
+
+                String rawWords = prefs.getString("words_list", "");
+                if (rawWords.isEmpty()) return;
+
+                String[] words = rawWords.split("[,،]");
+                if (words.length == 0) return;
+
+                if (currentStep >= words.length) {
+                    currentStep = 0;
+                }
+
+                String targetWord = words[currentStep].trim();
+                if (targetWord.isEmpty()) return;
+
                 AccessibilityNodeInfo rootNode = getRootInActiveWindow();
                 if (rootNode == null) return;
 
-                scanAndClick(rootNode);
+                if (scanAndClick(rootNode, targetWord)) {
+                    lastClickTime = currentTime;
+                    currentStep++;
+                    if (currentStep >= words.length) {
+                        currentStep = 0;
+                    }
+                }
                 rootNode.recycle();
             }
 
-            private void scanAndClick(AccessibilityNodeInfo node) {
-                if (node == null) return;
+            private boolean scanAndClick(AccessibilityNodeInfo node, String targetText) {
+                if (node == null) return false;
 
                 CharSequence text = node.getText();
                 CharSequence desc = node.getContentDescription();
 
-                boolean matchText = text != null && text.toString().equalsIgnoreCase(TARGET_TEXT);
-                boolean matchDesc = desc != null && desc.toString().equalsIgnoreCase(TARGET_TEXT);
+                boolean matchText = text != null && text.toString().toLowerCase().contains(targetText.toLowerCase());
+                boolean matchDesc = desc != null && desc.toString().toLowerCase().contains(targetText.toLowerCase());
 
                 if (matchText || matchDesc) {
                     if (!node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
@@ -156,16 +336,18 @@ jobs:
                         node.getBoundsInScreen(rect);
                         clickAt(rect.centerX(), rect.centerY());
                     }
-                    return;
+                    return true;
                 }
 
                 for (int i = 0; i < node.getChildCount(); i++) {
                     AccessibilityNodeInfo child = node.getChild(i);
                     if (child != null) {
-                        scanAndClick(child);
+                        boolean clicked = scanAndClick(child, targetText);
                         child.recycle();
+                        if (clicked) return true;
                     }
                 }
+                return false;
             }
 
             private void clickAt(int x, int y) {
@@ -194,7 +376,6 @@ jobs:
       with:
         name: AutoClicker-APK
         path: app/build/outputs/apk/debug/*.apk
-
 
 
 
