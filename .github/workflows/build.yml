@@ -83,8 +83,8 @@ jobs:
                 applicationId "com.example.autoclicker"
                 minSdk 24
                 targetSdk 33
-                versionCode 15
-                versionName "15.0"
+                versionCode 16
+                versionName "16.0"
             }
 
             compileOptions {
@@ -99,31 +99,51 @@ jobs:
         }
         EOF
 
-    - name: Generate Dynamic Logo & App Icons
+    - name: Generate True Syrian Revolution Flag Icons & Assets
       run: |
         python3 -c '
         from PIL import Image, ImageDraw
 
-        def create_logo(size):
-            img = Image.new("RGBA", (size, size), (63, 81, 181, 255))
+        def create_syrian_flag_icon(size):
+            # إنشاء قاعدة العلم (مستطيل مقسم إلى ثلاثة خطوط أفقية: أخضر، أبيض، أسود)
+            img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
             draw = ImageDraw.Draw(img)
-            # رسم دائرية وتصميم أيقونة النقر
-            margin = int(size * 0.1)
-            draw.ellipse([margin, margin, size - margin, size - margin], fill=(255, 255, 255, 255))
             
-            inner_m = int(size * 0.25)
-            draw.ellipse([inner_m, inner_m, size - inner_m, size - inner_m], fill=(255, 152, 0, 255))
+            h = size
+            w = size
             
-            center = size // 2
-            r = int(size * 0.15)
-            draw.ellipse([center - r, center - r, center + r, center + r], fill=(255, 255, 255, 255))
+            # الخط العلوي (أخضر)
+            draw.rectangle([0, 0, w, h // 3], fill=(0, 128, 0, 255))
+            # الخط الأوسط (أبيض)
+            draw.rectangle([0, h // 3, w, (2 * h) // 3], fill=(255, 255, 255, 255))
+            # الخط السفلي (أسود)
+            draw.rectangle([0, (2 * h) // 3, w, h], fill=(20, 20, 20, 255))
+            
+            # رسم النجوم الحمراء الثلاثة في المنتصف (الخط الأبيض)
+            def draw_star(cx, cy, r):
+                import math
+                points = []
+                for i in range(10):
+                    angle = i * math.pi / 5 - math.pi / 2
+                    curr_r = r if i % 2 == 0 else r / 2
+                    points.append((cx + curr_r * math.cos(angle), cy + curr_r * math.sin(angle)))
+                draw.polygon(points, fill=(204, 0, 0, 255))
+
+            y_center = h // 2
+            star_r = max(2, int(size * 0.08))
+            spacing = int(size * 0.22)
+            
+            draw_star(w // 2 - spacing, y_center, star_r)
+            draw_star(w // 2, y_center, star_r)
+            draw_star(w // 2 + spacing, y_center, star_r)
+            
             return img
 
-        # حفظ صورة الشعار الداخلي للتطبيق
-        logo_img = create_logo(512)
-        logo_img.save("app/src/main/res/drawable/app_logo.png", "PNG")
+        # حفظ شعار العلم داخل التطبيق
+        flag_img = create_syrian_flag_icon(512)
+        flag_img.save("app/src/main/res/drawable/app_logo.png", "PNG")
 
-        # حفظ أيقونات التطبيق بأحجام متعددة
+        # حفظ أيقونات المايبر (Launcher Icons) بنفس علم الثورة
         sizes = {
             "mipmap-mdpi": 48,
             "mipmap-hdpi": 72,
@@ -133,11 +153,11 @@ jobs:
         }
 
         for folder, sz in sizes.items():
-            icon = create_logo(sz)
+            icon = create_syrian_flag_icon(sz)
             icon.save(f"app/src/main/res/{folder}/ic_launcher.png", "PNG")
             icon.save(f"app/src/main/res/{folder}/ic_launcher_round.png", "PNG")
 
-        print("Logo and Icons generated successfully without external files!")
+        print("Syrian Revolution Flag assets generated successfully!")
         '
 
     - name: Write Android Manifest, Layout and Java Files
@@ -211,14 +231,14 @@ jobs:
                     android:layout_marginTop="2dp"
                     android:layout_marginBottom="6dp"/>
 
-                <!-- الشعار تحت كلمة برمجة الأيهم -->
+                <!-- علم الثورة السورية تحت كلمة برمجة الأيهم -->
                 <ImageView
                     android:id="@+id/imgLogo"
-                    android:layout_width="90dp"
+                    android:layout_width="140dp"
                     android:layout_height="90dp"
                     android:src="@drawable/app_logo"
                     android:scaleType="fitCenter"
-                    android:contentDescription="شعار التطبيق"
+                    android:contentDescription="شعار علم الثورة"
                     android:layout_marginBottom="10dp"/>
 
                 <TextView
@@ -480,7 +500,7 @@ jobs:
 
             @Override
             public void onAccessibilityEvent(AccessibilityEvent event) {
-                // سرعة فائقة في الاستجابة (Real-time response)
+                // سرعة فائقة حقيقية (فورية 0ms)
                 long currentTime = System.currentTimeMillis();
                 if (currentTime - lastClickTime < 20) return;
 
@@ -509,7 +529,7 @@ jobs:
                 if (foundNodes != null && !foundNodes.isEmpty()) {
                     for (AccessibilityNodeInfo node : foundNodes) {
                         if (node != null && node.isVisibleToUser()) {
-                            // تنفيذ نقرة فائقة السرعة بمدة 1ms فقط
+                            // تنفيذ نقرة فورية بأقصى سرعة بالنظام (1ms duration)
                             executeFastClick(node);
                             lastClickTime = System.currentTimeMillis();
                             currentStep++;
@@ -520,7 +540,6 @@ jobs:
                             final String soundUriStr = prefs.getString("custom_sound_uri", null);
                             final String wordMatched = targetWord;
 
-                            // تشغيل الصوت والإشعار في خلفية منفصلة لمنع أي تأخير في الضغط
                             asyncExecutor.execute(() -> {
                                 if (soundOn) playCustomSound(soundUriStr);
                                 if (notifOn) sendNotification(wordMatched);
