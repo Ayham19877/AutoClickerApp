@@ -10,69 +10,68 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
-
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Setup Complete Android Project
+    - name: Create Clean App Directory
       run: |
-        rm -rf * .github/workflows/*
-        mkdir -p .github/workflows
-        mkdir -p app/src/main/java/com/example/autoclicker
-        mkdir -p app/src/main/res/xml
+        mkdir -p /tmp/autoclicker/app/src/main/java/com/example/autoclicker
+        mkdir -p /tmp/autoclicker/app/src/main/res/xml
 
-        cat << 'EOF' > settings.gradle
+        cat << 'EOF' > /tmp/autoclicker/settings.gradle.kts
+        pluginManagement {
+            repositories {
+                google()
+                mavenCentral()
+                gradlePluginPortal()
+            }
+        }
+        dependencyResolutionManagement {
+            repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+            repositories {
+                google()
+                mavenCentral()
+            }
+        }
         rootProject.name = "AutoClickerApp"
-        include ':app'
+        include(":app")
         EOF
 
-        cat << 'EOF' > build.gradle
-        buildscript {
-            repositories {
-                google()
-                mavenCentral()
-            }
-            dependencies {
-                classpath 'com.android.tools.build:gradle:8.1.1'
-                classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.10'
-            }
-        }
-        allprojects {
-            repositories {
-                google()
-                mavenCentral()
-            }
+        cat << 'EOF' > /tmp/autoclicker/build.gradle.kts
+        plugins {
+            id("com.android.application") version "8.1.1" apply false
+            id("org.jetbrains.kotlin.android") version "1.8.10" apply false
         }
         EOF
 
-        cat << 'EOF' > app/build.gradle
-        apply plugin: 'com.android.application'
-        apply plugin: 'kotlin-android'
+        cat << 'EOF' > /tmp/autoclicker/app/build.gradle.kts
+        plugins {
+            id("com.android.application")
+            id("org.jetbrains.kotlin.android")
+        }
 
         android {
-            namespace 'com.example.autoclicker'
-            compileSdkVersion 33
+            namespace = "com.example.autoclicker"
+            compileSdk = 33
 
             defaultConfig {
-                applicationId "com.example.autoclicker"
-                minSdkVersion 24
-                targetSdkVersion 33
-                versionCode 1
-                versionName "1.0"
+                applicationId = "com.example.autoclicker"
+                minSdk = 24
+                targetSdk = 33
+                versionCode = 1
+                versionName = "1.0"
             }
         }
 
         dependencies {
-            implementation 'androidx.core:core-ktx:1.9.0'
+            implementation("androidx.core:core-ktx:1.9.0")
         }
         EOF
 
-        cat << 'EOF' > app/src/main/AndroidManifest.xml
+        cat << 'EOF' > /tmp/autoclicker/app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android">
             <application
@@ -95,7 +94,7 @@ jobs:
         </manifest>
         EOF
 
-        cat << 'EOF' > app/src/main/res/xml/accessibility_service_config.xml
+        cat << 'EOF' > /tmp/autoclicker/app/src/main/res/xml/accessibility_service_config.xml
         <?xml version="1.0" encoding="utf-8"?>
         <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
             android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged"
@@ -105,7 +104,7 @@ jobs:
             android:notificationTimeout="10" />
         EOF
 
-        cat << 'EOF' > app/src/main/java/com/example/autoclicker/AutoClickService.kt
+        cat << 'EOF' > /tmp/autoclicker/app/src/main/java/com/example/autoclicker/AutoClickService.kt
         package com.example.autoclicker
 
         import android.accessibilityservice.AccessibilityService
@@ -148,14 +147,17 @@ jobs:
         }
         EOF
 
-    - name: Generate Gradle Wrapper
-      run: gradle wrapper --gradle-version 8.0
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
 
-    - name: Build Debug APK with Wrapper
-      run: ./gradlew assembleDebug
+    - name: Build APK
+      run: |
+        cd /tmp/autoclicker
+        gradle assembleDebug
 
-    - name: Upload APK Artifact
+    - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: AutoClicker-APK
-        path: app/build/outputs/apk/debug/*.apk
+        path: /tmp/autoclicker/app/build/outputs/apk/debug/*.apk
+
