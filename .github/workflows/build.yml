@@ -83,8 +83,8 @@ jobs:
                 applicationId "com.example.autoclicker"
                 minSdk 24
                 targetSdk 33
-                versionCode 14
-                versionName "14.0"
+                versionCode 15
+                versionName "15.0"
             }
 
             compileOptions {
@@ -99,20 +99,31 @@ jobs:
         }
         EOF
 
-    - name: Embed Real Logo Image & Create Icons
+    - name: Generate Dynamic Logo & App Icons
       run: |
         python3 -c '
-        import base64, io
-        from PIL import Image
+        from PIL import Image, ImageDraw
 
-        b64_data = """'$(python3 -c "import base64; print(base64.b64encode(open('input_file_5.png', 'rb').read()).decode())")'"""
-        img_bytes = base64.b64decode(b64_data)
-        img = Image.open(io.BytesIO(img_bytes)).convert("RGBA")
+        def create_logo(size):
+            img = Image.new("RGBA", (size, size), (63, 81, 181, 255))
+            draw = ImageDraw.Draw(img)
+            # رسم دائرية وتصميم أيقونة النقر
+            margin = int(size * 0.1)
+            draw.ellipse([margin, margin, size - margin, size - margin], fill=(255, 255, 255, 255))
+            
+            inner_m = int(size * 0.25)
+            draw.ellipse([inner_m, inner_m, size - inner_m, size - inner_m], fill=(255, 152, 0, 255))
+            
+            center = size // 2
+            r = int(size * 0.15)
+            draw.ellipse([center - r, center - r, center + r, center + r], fill=(255, 255, 255, 255))
+            return img
 
-        # Save drawable logo for layout inside app
-        img.save("app/src/main/res/drawable/app_logo.png", "PNG")
+        # حفظ صورة الشعار الداخلي للتطبيق
+        logo_img = create_logo(512)
+        logo_img.save("app/src/main/res/drawable/app_logo.png", "PNG")
 
-        # Save app mipmap icons for launcher
+        # حفظ أيقونات التطبيق بأحجام متعددة
         sizes = {
             "mipmap-mdpi": 48,
             "mipmap-hdpi": 72,
@@ -122,11 +133,11 @@ jobs:
         }
 
         for folder, sz in sizes.items():
-            resized = img.resize((sz, sz), Image.LANCZOS)
-            resized.save(f"app/src/main/res/{folder}/ic_launcher.png", "PNG")
-            resized.save(f"app/src/main/res/{folder}/ic_launcher_round.png", "PNG")
+            icon = create_logo(sz)
+            icon.save(f"app/src/main/res/{folder}/ic_launcher.png", "PNG")
+            icon.save(f"app/src/main/res/{folder}/ic_launcher_round.png", "PNG")
 
-        print("Logo and Icons applied successfully!")
+        print("Logo and Icons generated successfully without external files!")
         '
 
     - name: Write Android Manifest, Layout and Java Files
@@ -200,7 +211,7 @@ jobs:
                     android:layout_marginTop="2dp"
                     android:layout_marginBottom="6dp"/>
 
-                <!-- الشعار المضاف أسفل كلمة برمجة الأيهم -->
+                <!-- الشعار تحت كلمة برمجة الأيهم -->
                 <ImageView
                     android:id="@+id/imgLogo"
                     android:layout_width="90dp"
@@ -469,7 +480,7 @@ jobs:
 
             @Override
             public void onAccessibilityEvent(AccessibilityEvent event) {
-                // استجابة فورية فائقة دون تأخير زمن (أقل من 20 ميلي ثانية)
+                // سرعة فائقة في الاستجابة (Real-time response)
                 long currentTime = System.currentTimeMillis();
                 if (currentTime - lastClickTime < 20) return;
 
@@ -498,7 +509,7 @@ jobs:
                 if (foundNodes != null && !foundNodes.isEmpty()) {
                     for (AccessibilityNodeInfo node : foundNodes) {
                         if (node != null && node.isVisibleToUser()) {
-                            // تنفيذ ضغط لمس افتراضي مباشر بأقصى سرعة بالنظام (1ms duration)
+                            // تنفيذ نقرة فائقة السرعة بمدة 1ms فقط
                             executeFastClick(node);
                             lastClickTime = System.currentTimeMillis();
                             currentStep++;
@@ -509,7 +520,7 @@ jobs:
                             final String soundUriStr = prefs.getString("custom_sound_uri", null);
                             final String wordMatched = targetWord;
 
-                            // تنفيذ الإشعارات والأصوات في خلفية منفصلة حتى لا تبطئ الضغط
+                            // تشغيل الصوت والإشعار في خلفية منفصلة لمنع أي تأخير في الضغط
                             asyncExecutor.execute(() -> {
                                 if (soundOn) playCustomSound(soundUriStr);
                                 if (notifOn) sendNotification(wordMatched);
@@ -536,7 +547,6 @@ jobs:
                 Path path = new Path();
                 path.moveTo(x, y);
                 GestureDescription.Builder builder = new GestureDescription.Builder();
-                // Stroke duration = 1ms لأقصى نقرة فائقة السرعة
                 GestureDescription gesture = builder.addStroke(new GestureDescription.StrokeDescription(path, 0, 1)).build();
                 dispatchGesture(gesture, null, null);
             }
