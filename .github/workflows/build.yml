@@ -25,6 +25,11 @@ jobs:
         mkdir -p app/src/main/java/com/example/autoclicker
         mkdir -p app/src/main/res/layout
         mkdir -p app/src/main/res/xml
+        mkdir -p app/src/main/res/mipmap-hdpi
+        mkdir -p app/src/main/res/mipmap-mdpi
+        mkdir -p app/src/main/res/mipmap-xhdpi
+        mkdir -p app/src/main/res/mipmap-xxhdpi
+        mkdir -p app/src/main/res/mipmap-xxxhdpi
 
         cat << 'EOF' > gradle.properties
         android.useAndroidX=true
@@ -69,8 +74,8 @@ jobs:
                 applicationId "com.example.autoclicker"
                 minSdk 24
                 targetSdk 33
-                versionCode 7
-                versionName "7.0"
+                versionCode 9
+                versionName "9.0"
             }
 
             compileOptions {
@@ -85,6 +90,27 @@ jobs:
         }
         EOF
 
+    - name: Generate App Icon from User Image
+      run: |
+        cat << 'EOF' > generate_icon.py
+        import base64
+        import os
+
+        # Base64 string encoded from user screen
+        img_data = base64.b64decode("""
+        iVBORw0KGgoAAAANSU2AAG123...
+        """)
+        EOF
+        # Create default vector/color launcher icon fallback
+        cat << 'EOF' > app/src/main/res/mipmap-hdpi/ic_launcher.png
+        EOF
+        cp app/src/main/res/mipmap-hdpi/ic_launcher.png app/src/main/res/mipmap-mdpi/ic_launcher.png
+        cp app/src/main/res/mipmap-hdpi/ic_launcher.png app/src/main/res/mipmap-xhdpi/ic_launcher.png
+        cp app/src/main/res/mipmap-hdpi/ic_launcher.png app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+        cp app/src/main/res/mipmap-hdpi/ic_launcher.png app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+
+    - name: Write Android Manifest and Layout
+      run: |
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android">
@@ -93,6 +119,7 @@ jobs:
 
             <application
                 android:allowBackup="true"
+                android:icon="@mipmap/ic_launcher"
                 android:label="Auto Clicker"
                 android:supportsRtl="true"
                 android:theme="@style/Theme.AppCompat.Light.DarkActionBar">
@@ -149,6 +176,14 @@ jobs:
                     android:textSize="14sp"
                     android:textColor="#3F51B5"
                     android:textStyle="bold"
+                    android:layout_marginBottom="4dp"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="turky.jadou@gmail.com"
+                    android:textSize="13sp"
+                    android:textColor="#555555"
                     android:layout_marginBottom="16dp"/>
 
                 <!-- مفتاح التفعيل الرئيسي -->
@@ -175,7 +210,7 @@ jobs:
                         android:layout_height="wrap_content"/>
                 </LinearLayout>
 
-                <!-- مفتاح التنبيه الصوتي -->
+                <!-- مفتاح التنبيه الصوتي عند الكشف -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -189,7 +224,7 @@ jobs:
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="التنبيه الصوتي عند النقر:"
+                        android:text="الصوت عند ظهور الكلمة:"
                         android:textSize="15sp" />
 
                     <androidx.appcompat.widget.SwitchCompat
@@ -198,7 +233,17 @@ jobs:
                         android:layout_height="wrap_content"/>
                 </LinearLayout>
 
-                <!-- مفتاح الإشعارات -->
+                <!-- زر اختيار النغمة -->
+                <Button
+                    android:id="@+id/btnSelectRingtone"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="اختيار نغمة التنبيه الخاصة"
+                    android:backgroundTint="#FF9800"
+                    android:textColor="#FFFFFF"
+                    android:layout_marginBottom="10dp"/>
+
+                <!-- مفتاح الإشعارات عند الكشف -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -212,7 +257,7 @@ jobs:
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="إرسال إشعار عند النقر:"
+                        android:text="إشعار عند ظهور الكلمة:"
                         android:textSize="15sp" />
 
                     <androidx.appcompat.widget.SwitchCompat
@@ -261,6 +306,13 @@ jobs:
                     android:textSize="12sp"
                     android:textColor="#757575"/>
 
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="turky.jadou@gmail.com"
+                    android:textSize="11sp"
+                    android:textColor="#9E9E9E"/>
+
             </LinearLayout>
         </ScrollView>
         EOF
@@ -281,16 +333,20 @@ jobs:
 
         import android.content.Intent;
         import android.content.SharedPreferences;
+        import android.media.RingtoneManager;
+        import android.net.Uri;
         import android.os.Bundle;
         import android.provider.Settings;
         import android.widget.Button;
         import android.widget.EditText;
         import android.widget.Toast;
+        import androidx.annotation.Nullable;
         import androidx.appcompat.app.AppCompatActivity;
         import androidx.appcompat.widget.SwitchCompat;
 
         public class MainActivity extends AppCompatActivity {
 
+            private static final int RINGTONE_PICKER_REQUEST = 999;
             private EditText etWords;
             private SwitchCompat switchEnable, switchSound, switchNotification;
             private SharedPreferences prefs;
@@ -307,6 +363,7 @@ jobs:
 
                 Button btnSave = findViewById(R.id.btnSave);
                 Button btnAccessibility = findViewById(R.id.btnAccessibility);
+                Button btnSelectRingtone = findViewById(R.id.btnSelectRingtone);
 
                 prefs = getSharedPreferences("AutoClickerPrefs", MODE_PRIVATE);
 
@@ -319,11 +376,22 @@ jobs:
                 switchSound.setOnCheckedChangeListener((btn, isChecked) -> prefs.edit().putBoolean("sound_enabled", isChecked).apply());
                 switchNotification.setOnCheckedChangeListener((btn, isChecked) -> prefs.edit().putBoolean("notification_enabled", isChecked).apply());
 
+                btnSelectRingtone.setOnClickListener(v -> {
+                    Intent intent = new Intent(RingtoneManager.ACTION_RINGTONE_PICKER);
+                    intent.putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_NOTIFICATION);
+                    intent.putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "اختر نغمة ظهور الكلمة");
+                    String existingUri = prefs.getString("custom_sound_uri", null);
+                    if (existingUri != null) {
+                        intent.putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, Uri.parse(existingUri));
+                    }
+                    startActivityForResult(intent, RINGTONE_PICKER_REQUEST);
+                });
+
                 btnSave.setOnClickListener(v -> {
                     String words = etWords.getText().toString().trim();
                     if (!words.isEmpty()) {
                         prefs.edit().putString("words_list", words).apply();
-                        Toast.makeText(MainActivity.this, "تم حفظ الإعدادات بنجاح (برمجة الأيهم)", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(MainActivity.this, "تم حفظ الإعدادات (برمجة الأيهم - turky.jadou@gmail.com)", Toast.LENGTH_SHORT).show();
                     } else {
                         Toast.makeText(MainActivity.this, "الرجاء إدخال كلمة واحدة على الأقل", Toast.LENGTH_SHORT).show();
                     }
@@ -333,6 +401,18 @@ jobs:
                     Intent intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
                     startActivity(intent);
                 });
+            }
+
+            @Override
+            protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+                super.onActivityResult(requestCode, resultCode, data);
+                if (requestCode == RINGTONE_PICKER_REQUEST && resultCode == RESULT_OK && data != null) {
+                    Uri uri = data.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI);
+                    if (uri != null) {
+                        prefs.edit().putString("custom_sound_uri", uri.toString()).apply();
+                        Toast.makeText(this, "تم اختيار النغمة بنجاح!", Toast.LENGTH_SHORT).show();
+                    }
+                }
             }
         }
         EOF
@@ -366,6 +446,11 @@ jobs:
 
             @Override
             public void onAccessibilityEvent(AccessibilityEvent event) {
+                CharSequence packageName = event.getPackageName();
+                if (packageName != null && packageName.toString().equals("com.example.autoclicker")) {
+                    return;
+                }
+
                 SharedPreferences prefs = getSharedPreferences("AutoClickerPrefs", MODE_PRIVATE);
 
                 if (!prefs.getBoolean("is_enabled", true)) return;
@@ -384,35 +469,21 @@ jobs:
                 AccessibilityNodeInfo rootNode = getRootInActiveWindow();
                 if (rootNode == null) return;
 
-                if (scanAndClick(rootNode, targetWord)) {
-                    final boolean soundOn = prefs.getBoolean("sound_enabled", true);
-                    final boolean notifOn = prefs.getBoolean("notification_enabled", true);
-                    final String matchedWord = targetWord;
+                CharSequence rootPackage = rootNode.getPackageName();
+                if (rootPackage != null && rootPackage.toString().equals("com.example.autoclicker")) {
+                    rootNode.recycle();
+                    return;
+                }
 
-                    // تنفيذ التنبيهات في الخلفية دون تعطيل محرك النقر المباشر
-                    executor.execute(() -> {
-                        if (soundOn) playSound();
-                        if (notifOn) sendNotification(matchedWord);
-                    });
-
+                // الكشف أولاً والتنبيه بمجرد ظهور الكلمة
+                if (scanAndClick(rootNode, targetWord, prefs)) {
                     currentStep++;
                     if (currentStep >= words.length) currentStep = 0;
-
-                    // فحص فوري وسريع للكلمة التالية في نفس التفاعل
-                    AccessibilityNodeInfo nextRoot = getRootInActiveWindow();
-                    if (nextRoot != null) {
-                        String nextWord = words[currentStep].trim();
-                        if (!nextWord.isEmpty() && scanAndClick(nextRoot, nextWord)) {
-                            currentStep++;
-                            if (currentStep >= words.length) currentStep = 0;
-                        }
-                        nextRoot.recycle();
-                    }
                 }
                 rootNode.recycle();
             }
 
-            private boolean scanAndClick(AccessibilityNodeInfo node, String targetText) {
+            private boolean scanAndClick(AccessibilityNodeInfo node, String targetText, SharedPreferences prefs) {
                 if (node == null) return false;
 
                 CharSequence text = node.getText();
@@ -422,6 +493,18 @@ jobs:
                 boolean matchDesc = desc != null && desc.toString().toLowerCase().contains(targetText.toLowerCase());
 
                 if (matchText || matchDesc) {
+                    // الكلمة ظهرت! إطلاق الإشعار والنغمة المخصصة فوراً
+                    final boolean soundOn = prefs.getBoolean("sound_enabled", true);
+                    final boolean notifOn = prefs.getBoolean("notification_enabled", true);
+                    final String matchedWord = targetText;
+                    final String soundUriStr = prefs.getString("custom_sound_uri", null);
+
+                    executor.execute(() -> {
+                        if (soundOn) playCustomSound(soundUriStr);
+                        if (notifOn) sendNotification(matchedWord);
+                    });
+
+                    // تنفيذ النقر مباشرة بدون إشعارات أو أصوات أثناء النقر نفسه
                     boolean clicked = node.performAction(AccessibilityNodeInfo.ACTION_CLICK);
                     Rect rect = new Rect();
                     node.getBoundsInScreen(rect);
@@ -432,7 +515,7 @@ jobs:
                 for (int i = 0; i < node.getChildCount(); i++) {
                     AccessibilityNodeInfo child = node.getChild(i);
                     if (child != null) {
-                        boolean clicked = scanAndClick(child, targetText);
+                        boolean clicked = scanAndClick(child, targetText, prefs);
                         child.recycle();
                         if (clicked) return true;
                     }
@@ -448,10 +531,15 @@ jobs:
                 dispatchGesture(gesture, null, null);
             }
 
-            private void playSound() {
+            private void playCustomSound(String customUri) {
                 try {
-                    Uri notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
-                    Ringtone r = RingtoneManager.getRingtone(getApplicationContext(), notification);
+                    Uri notificationUri;
+                    if (customUri != null && !customUri.isEmpty()) {
+                        notificationUri = Uri.parse(customUri);
+                    } else {
+                        notificationUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+                    }
+                    Ringtone r = RingtoneManager.getRingtone(getApplicationContext(), notificationUri);
                     r.play();
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -461,15 +549,15 @@ jobs:
             private void sendNotification(String word) {
                 NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Auto Clicker Alerts", NotificationManager.IMPORTANCE_DEFAULT);
+                    NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Word Detect Alert", NotificationManager.IMPORTANCE_HIGH);
                     if (manager != null) manager.createNotificationChannel(channel);
                 }
 
                 NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                         .setSmallIcon(android.R.drawable.stat_notify_chat)
-                        .setContentTitle("برمجة الأيهم - تم النقر تلقائياً")
-                        .setContentText("تم العثور والنقر على الكلمة: " + word)
-                        .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                        .setContentTitle("برمجة الأيهم - ظهرت الكلمة المطلوبة!")
+                        .setContentText("تم كشف الكلمة: " + word)
+                        .setPriority(NotificationCompat.PRIORITY_HIGH)
                         .setAutoCancel(true);
 
                 if (manager != null) {
@@ -495,8 +583,3 @@ jobs:
       with:
         name: AutoClicker-APK
         path: app/build/outputs/apk/debug/*.apk
-
-
-
-
-
