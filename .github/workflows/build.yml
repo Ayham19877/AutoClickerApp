@@ -21,9 +21,14 @@ jobs:
 
     - name: Clean Workspace & Setup Project Files
       run: |
-        rm -rf app settings.gradle build.gradle gradlew gradlew.bat gradle
+        rm -rf app settings.gradle build.gradle gradle.properties gradlew gradlew.bat gradle
         mkdir -p app/src/main/java/com/example/autoclicker
         mkdir -p app/src/main/res/xml
+
+        cat << 'EOF' > gradle.properties
+        android.useAndroidX=true
+        android.enableJetifier=true
+        EOF
 
         cat << 'EOF' > settings.gradle
         pluginManagement {
@@ -159,10 +164,12 @@ jobs:
         EOF
 
     - name: Setup & Build with Gradle
-      uses: gradle/gradle-build-action@v3
+      uses: gradle/actions/setup-gradle@v3
       with:
-        gradle-version: 8.1.1
-        arguments: assembleDebug
+        gradle-version: '8.1.1'
+
+    - name: Build Debug APK
+      run: gradle assembleDebug
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
