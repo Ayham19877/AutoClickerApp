@@ -83,8 +83,8 @@ jobs:
                 applicationId "com.example.autoclicker"
                 minSdk 24
                 targetSdk 33
-                versionCode 16
-                versionName "16.0"
+                versionCode 17
+                versionName "17.0"
             }
 
             compileOptions {
@@ -105,21 +105,14 @@ jobs:
         from PIL import Image, ImageDraw
 
         def create_syrian_flag_icon(size):
-            # إنشاء قاعدة العلم (مستطيل مقسم إلى ثلاثة خطوط أفقية: أخضر، أبيض، أسود)
             img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
             draw = ImageDraw.Draw(img)
-            
             h = size
             w = size
-            
-            # الخط العلوي (أخضر)
             draw.rectangle([0, 0, w, h // 3], fill=(0, 128, 0, 255))
-            # الخط الأوسط (أبيض)
             draw.rectangle([0, h // 3, w, (2 * h) // 3], fill=(255, 255, 255, 255))
-            # الخط السفلي (أسود)
             draw.rectangle([0, (2 * h) // 3, w, h], fill=(20, 20, 20, 255))
             
-            # رسم النجوم الحمراء الثلاثة في المنتصف (الخط الأبيض)
             def draw_star(cx, cy, r):
                 import math
                 points = []
@@ -136,14 +129,11 @@ jobs:
             draw_star(w // 2 - spacing, y_center, star_r)
             draw_star(w // 2, y_center, star_r)
             draw_star(w // 2 + spacing, y_center, star_r)
-            
             return img
 
-        # حفظ شعار العلم داخل التطبيق
         flag_img = create_syrian_flag_icon(512)
         flag_img.save("app/src/main/res/drawable/app_logo.png", "PNG")
 
-        # حفظ أيقونات المايبر (Launcher Icons) بنفس علم الثورة
         sizes = {
             "mipmap-mdpi": 48,
             "mipmap-hdpi": 72,
@@ -157,7 +147,7 @@ jobs:
             icon.save(f"app/src/main/res/{folder}/ic_launcher.png", "PNG")
             icon.save(f"app/src/main/res/{folder}/ic_launcher_round.png", "PNG")
 
-        print("Syrian Revolution Flag assets generated successfully!")
+        print("Assets generated successfully!")
         '
 
     - name: Write Android Manifest, Layout and Java Files
@@ -231,14 +221,13 @@ jobs:
                     android:layout_marginTop="2dp"
                     android:layout_marginBottom="6dp"/>
 
-                <!-- علم الثورة السورية تحت كلمة برمجة الأيهم -->
                 <ImageView
                     android:id="@+id/imgLogo"
                     android:layout_width="140dp"
                     android:layout_height="90dp"
                     android:src="@drawable/app_logo"
                     android:scaleType="fitCenter"
-                    android:contentDescription="شعار علم الثورة"
+                    android:contentDescription="علم الثورة"
                     android:layout_marginBottom="10dp"/>
 
                 <TextView
@@ -262,12 +251,36 @@ jobs:
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="تفعيل / إيقاف التلقائي:"
+                        android:text="تفعيل الخدمة العامة:"
                         android:textSize="15sp"
                         android:textStyle="bold" />
 
                     <androidx.appcompat.widget.SwitchCompat
                         android:id="@+id/switchEnable"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"/>
+                </LinearLayout>
+
+                <!-- خيار تفعيل او ايقاف الكبس الفعلي -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:padding="12dp"
+                    android:background="#E0F2F1"
+                    android:layout_marginBottom="10dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="تفعيل الكبس التلقائي (الضغط):"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
+
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/switchClickAction"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"/>
                 </LinearLayout>
@@ -310,7 +323,7 @@ jobs:
                     android:gravity="center_vertical"
                     android:padding="12dp"
                     android:background="#F5F5F5"
-                    android:layout_marginBottom="16dp">
+                    android:layout_marginBottom="10dp">
 
                     <TextView
                         android:layout_width="0dp"
@@ -324,6 +337,24 @@ jobs:
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"/>
                 </LinearLayout>
+
+                <!-- خيار تحديد سرعة الكبسة (بالميلي ثانية) -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="سرعة الكبسة (مدة الضغط بالميلي ثانية - الافتراضي 1):"
+                    android:textSize="14sp"
+                    android:layout_marginBottom="4dp"/>
+
+                <EditText
+                    android:id="@+id/etClickSpeed"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="1"
+                    android:inputType="number"
+                    android:padding="10dp"
+                    android:background="@android:drawable/editbox_background"
+                    android:layout_marginBottom="12dp"/>
 
                 <TextView
                     android:layout_width="match_parent"
@@ -399,8 +430,8 @@ jobs:
         public class MainActivity extends AppCompatActivity {
 
             private static final int RINGTONE_PICKER_REQUEST = 999;
-            private EditText etWords;
-            private SwitchCompat switchEnable, switchSound, switchNotification;
+            private EditText etWords, etClickSpeed;
+            private SwitchCompat switchEnable, switchClickAction, switchSound, switchNotification;
             private SharedPreferences prefs;
 
             @Override
@@ -409,7 +440,9 @@ jobs:
                 setContentView(R.layout.activity_main);
 
                 etWords = findViewById(R.id.etWords);
+                etClickSpeed = findViewById(R.id.etClickSpeed);
                 switchEnable = findViewById(R.id.switchEnable);
+                switchClickAction = findViewById(R.id.switchClickAction);
                 switchSound = findViewById(R.id.switchSound);
                 switchNotification = findViewById(R.id.switchNotification);
 
@@ -420,11 +453,14 @@ jobs:
                 prefs = getSharedPreferences("AutoClickerPrefs", MODE_PRIVATE);
 
                 etWords.setText(prefs.getString("words_list", "Accept, Confirm, Done"));
+                etClickSpeed.setText(String.valueOf(prefs.getInt("click_speed_ms", 1)));
                 switchEnable.setChecked(prefs.getBoolean("is_enabled", true));
+                switchClickAction.setChecked(prefs.getBoolean("click_action_enabled", true));
                 switchSound.setChecked(prefs.getBoolean("sound_enabled", true));
                 switchNotification.setChecked(prefs.getBoolean("notification_enabled", true));
 
                 switchEnable.setOnCheckedChangeListener((btn, isChecked) -> prefs.edit().putBoolean("is_enabled", isChecked).apply());
+                switchClickAction.setOnCheckedChangeListener((btn, isChecked) -> prefs.edit().putBoolean("click_action_enabled", isChecked).apply());
                 switchSound.setOnCheckedChangeListener((btn, isChecked) -> prefs.edit().putBoolean("sound_enabled", isChecked).apply());
                 switchNotification.setOnCheckedChangeListener((btn, isChecked) -> prefs.edit().putBoolean("notification_enabled", isChecked).apply());
 
@@ -441,9 +477,18 @@ jobs:
 
                 btnSave.setOnClickListener(v -> {
                     String words = etWords.getText().toString().trim();
+                    String speedStr = etClickSpeed.getText().toString().trim();
+                    int speed = 1;
+                    try {
+                        if (!speedStr.isEmpty()) speed = Integer.parseInt(speedStr);
+                    } catch (Exception ignored) {}
+
                     if (!words.isEmpty()) {
-                        prefs.edit().putString("words_list", words).apply();
-                        Toast.makeText(MainActivity.this, "تم حفظ الإعدادات (برمجة الأيهم - turky.jadou@gmail.com)", Toast.LENGTH_SHORT).show();
+                        prefs.edit()
+                            .putString("words_list", words)
+                            .putInt("click_speed_ms", speed)
+                            .apply();
+                        Toast.makeText(MainActivity.this, "تم حفظ الإعدادات بنجاح (برمجة الأيهم)", Toast.LENGTH_SHORT).show();
                     } else {
                         Toast.makeText(MainActivity.this, "الرجاء إدخال كلمة واحدة على الأقل", Toast.LENGTH_SHORT).show();
                     }
@@ -500,7 +545,6 @@ jobs:
 
             @Override
             public void onAccessibilityEvent(AccessibilityEvent event) {
-                // سرعة فائقة حقيقية (فورية 0ms)
                 long currentTime = System.currentTimeMillis();
                 if (currentTime - lastClickTime < 20) return;
 
@@ -529,8 +573,14 @@ jobs:
                 if (foundNodes != null && !foundNodes.isEmpty()) {
                     for (AccessibilityNodeInfo node : foundNodes) {
                         if (node != null && node.isVisibleToUser()) {
-                            // تنفيذ نقرة فورية بأقصى سرعة بالنظام (1ms duration)
-                            executeFastClick(node);
+                            boolean clickActionEnabled = prefs.getBoolean("click_action_enabled", true);
+                            int clickSpeed = prefs.getInt("click_speed_ms", 1);
+
+                            // إذا كان تفعيل الكبس مفعل يتم النقر، وإلا يكتفي بالصوت والإشعار فقط
+                            if (clickActionEnabled) {
+                                executeFastClick(node, clickSpeed);
+                            }
+
                             lastClickTime = System.currentTimeMillis();
                             currentStep++;
                             if (currentStep >= words.length) currentStep = 0;
@@ -542,7 +592,7 @@ jobs:
 
                             asyncExecutor.execute(() -> {
                                 if (soundOn) playCustomSound(soundUriStr);
-                                if (notifOn) sendNotification(wordMatched);
+                                if (notifOn) sendNotification(wordMatched, clickActionEnabled);
                             });
                             break;
                         }
@@ -551,7 +601,7 @@ jobs:
                 rootNode.recycle();
             }
 
-            private void executeFastClick(AccessibilityNodeInfo node) {
+            private void executeFastClick(AccessibilityNodeInfo node, int durationMs) {
                 if (!node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
                     if (node.getParent() != null && node.getParent().performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
                         return;
@@ -559,14 +609,15 @@ jobs:
                 }
                 Rect rect = new Rect();
                 node.getBoundsInScreen(rect);
-                clickAt(rect.centerX(), rect.centerY());
+                clickAt(rect.centerX(), rect.centerY(), durationMs);
             }
 
-            private void clickAt(int x, int y) {
+            private void clickAt(int x, int y, int durationMs) {
                 Path path = new Path();
                 path.moveTo(x, y);
                 GestureDescription.Builder builder = new GestureDescription.Builder();
-                GestureDescription gesture = builder.addStroke(new GestureDescription.StrokeDescription(path, 0, 1)).build();
+                if (durationMs < 1) durationMs = 1;
+                GestureDescription gesture = builder.addStroke(new GestureDescription.StrokeDescription(path, 0, durationMs)).build();
                 dispatchGesture(gesture, null, null);
             }
 
@@ -585,17 +636,19 @@ jobs:
                 }
             }
 
-            private void sendNotification(String word) {
+            private void sendNotification(String word, boolean clicked) {
                 NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Word Detect Alert", NotificationManager.IMPORTANCE_HIGH);
                     if (manager != null) manager.createNotificationChannel(channel);
                 }
 
+                String textMsg = clicked ? "تم الكشف والنقر على: " + word : "تم الكشف عن الكلمة (بدون كبس): " + word;
+
                 NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                         .setSmallIcon(android.R.drawable.stat_notify_chat)
-                        .setContentTitle("برمجة الأيهم - تم النقر بنجاح!")
-                        .setContentText("تم كشف والنقر على: " + word)
+                        .setContentTitle("برمجة الأيهم")
+                        .setContentText(textMsg)
                         .setPriority(NotificationCompat.PRIORITY_HIGH)
                         .setAutoCancel(true);
 
@@ -622,4 +675,3 @@ jobs:
       with:
         name: AutoClicker-APK
         path: app/build/outputs/apk/debug/*.apk
-
