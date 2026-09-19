@@ -10,17 +10,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout Code
+      uses: actions/checkout@v4
 
-    - name: set up JDK 17
+    - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Build APK with Gradle
+    - name: Setup Standalone Project & Build APK
       run: |
-        cat << 'EOF' > build.gradle
+        mkdir -p autoclicker_project/app/src/main/java/com/example/autoclicker
+        mkdir -p autoclicker_project/app/src/main/res/xml
+
+        cat << 'EOF' > autoclicker_project/build.gradle
         buildscript {
             repositories { google(); mavenCentral() }
             dependencies {
@@ -32,17 +36,117 @@ jobs:
             repositories { google(); mavenCentral() }
         }
         EOF
-        
-        cat << 'EOF' > settings.gradle
+
+        cat << 'EOF' > autoclicker_project/settings.gradle
         rootProject.name = "AutoClickerApp"
         include ':app'
         EOF
 
-    - name: Build Debug APK
-      run: gradle assembleDebug
+        cat << 'EOF' > autoclicker_project/app/build.gradle
+        plugins {
+            id 'com.android.application'
+            id 'org.jetbrains.kotlin.android'
+        }
 
-    - name: Upload APK
+        android {
+            namespace 'com.example.autoclicker'
+            compileSdk 33
+
+            defaultConfig {
+                applicationId "com.example.autoclicker"
+                minSdk 24
+                targetSdk 33
+                versionCode 1
+                versionName "1.0"
+            }
+        }
+
+        dependencies {
+            implementation 'androidx.core:core-ktx:1.9.0'
+        }
+        EOF
+
+        cat << 'EOF' > autoclicker_project/app/src/main/AndroidManifest.xml
+        <?xml version="1.0" encoding="utf-8"?>
+        <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            <application
+                android:allowBackup="true"
+                android:label="Auto Clicker App"
+                android:supportsRtl="true"
+                android:theme="@android:style/Theme.DeviceDefault">
+                <service
+                    android:name="com.example.autoclicker.AutoClickService"
+                    android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+                    android:exported="true">
+                    <intent-filter>
+                        <action android:name="android.accessibilityservice.AccessibilityService" />
+                    </intent-filter>
+                    <meta-data
+                        android:name="android.accessibilityservice"
+                        android:resource="@xml/accessibility_service_config" />
+                </service>
+            </application>
+        </manifest>
+        EOF
+
+        cat << 'EOF' > autoclicker_project/app/src/main/res/xml/accessibility_service_config.xml
+        <?xml version="1.0" encoding="utf-8"?>
+        <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+            android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged"
+            android:accessibilityFeedbackType="feedbackGeneric"
+            android:accessibilityFlags="flagDefault"
+            android:canRetrieveWindowContent="true"
+            android:notificationTimeout="10" />
+        EOF
+
+        cat << 'EOF' > autoclicker_project/app/src/main/java/com/example/autoclicker/AutoClickService.kt
+        package com.example.autoclicker
+
+        import android.accessibilityservice.AccessibilityService
+        import android.view.accessibility.AccessibilityEvent
+        import android.view.accessibility.AccessibilityNodeInfo
+
+        class AutoClickService : AccessibilityService() {
+
+            private val TARGET_TEXT = "Accept"
+
+            override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+                if (event == null) return
+                val rootNode = rootInActiveWindow ?: return
+
+                val nodes = rootNode.findAccessibilityNodeInfosByText(TARGET_TEXT)
+                if (nodes != null && nodes.isNotEmpty()) {
+                    for (node in nodes) {
+                        if (node.text != null && node.text.toString().contains(TARGET_TEXT, ignoreCase = true)) {
+                            if (!clickNodeOrParent(node)) {
+                                node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                            }
+                            break
+                        }
+                    }
+                }
+            }
+
+            private fun clickNodeOrParent(node: AccessibilityNodeInfo?): Boolean {
+                var current = node
+                while (current != null) {
+                    if (current.isClickable) {
+                        return current.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                    }
+                    current = current.parent
+                }
+                return false
+            }
+
+            override fun onInterrupt() {}
+        }
+        EOF
+
+        cd autoclicker_project
+        gradle assembleDebug
+
+    - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
         name: AutoClicker-APK
-        path: app/build/outputs/apk/debug/*.apk
+        path: autoclicker_project/app/build/outputs/apk/debug/*.apk
