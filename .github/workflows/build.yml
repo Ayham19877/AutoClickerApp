@@ -22,7 +22,6 @@ jobs:
         mkdir -p .github/workflows
         mkdir -p app/src/main/java/com/example/autoclicker
         mkdir -p app/src/main/res/xml
-        mkdir -p gradle/wrapper
 
         cat << 'EOF' > settings.gradle
         rootProject.name = "AutoClickerApp"
@@ -107,7 +106,7 @@ jobs:
         package com.example.autoclicker;
 
         import android.accessibilityservice.AccessibilityService;
-         grand import android.view.accessibility.AccessibilityEvent;
+        import android.view.accessibility.AccessibilityEvent;
         import android.view.accessibility.AccessibilityNodeInfo;
         import java.util.List;
 
@@ -150,27 +149,15 @@ jobs:
         }
         EOF
 
-        cat << 'EOF' > gradle/wrapper/gradle-wrapper.properties
-        distributionBase=GRADLE_USER_HOME
-        distributionPath=wrapper/dists
-        distributionUrl=https\://services.gradle.org/distributions/gradle-7.0.2-bin.zip
-        zipStoreBase=GRADLE_USER_HOME
-        zipStorePath=wrapper/dists
-        EOF
-
-    - name: Setup Gradle Executable
-      run: |
-        curl -sL https://github.com/gradle/gradle-build-action/raw/main/src/wrapper/gradlew -o gradlew
-        chmod +x gradlew
-
     - name: Build Debug APK
-      run: ./gradlew assembleDebug
+      run: gradle assembleDebug
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: AutoClicker-APK
         path: app/build/outputs/apk/debug/*.apk
+
 
 
 
