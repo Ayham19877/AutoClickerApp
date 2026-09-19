@@ -19,14 +19,22 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Clean Workspace & Setup Project Files
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
+
+    - name: Install Pillow
+      run: pip install Pillow
+
+    - name: Clean Workspace & Setup Project Directories
       run: |
         rm -rf app settings.gradle build.gradle gradle.properties gradlew gradlew.bat gradle
         mkdir -p app/src/main/java/com/example/autoclicker
         mkdir -p app/src/main/res/layout
         mkdir -p app/src/main/res/xml
-        mkdir -p app/src/main/res/mipmap-hdpi
         mkdir -p app/src/main/res/mipmap-mdpi
+        mkdir -p app/src/main/res/mipmap-hdpi
         mkdir -p app/src/main/res/mipmap-xhdpi
         mkdir -p app/src/main/res/mipmap-xxhdpi
         mkdir -p app/src/main/res/mipmap-xxxhdpi
@@ -74,8 +82,8 @@ jobs:
                 applicationId "com.example.autoclicker"
                 minSdk 24
                 targetSdk 33
-                versionCode 9
-                versionName "9.0"
+                versionCode 10
+                versionName "10.0"
             }
 
             compileOptions {
@@ -90,26 +98,56 @@ jobs:
         }
         EOF
 
-    - name: Generate App Icon from User Image
+    - name: Generate Icon Images From Embedded Base64
       run: |
-        cat << 'EOF' > generate_icon.py
+        cat << 'EOF' > make_icons.py
         import base64
-        import os
+        import io
+        from PIL import Image
 
-        # Base64 string encoded from user screen
-        img_data = base64.b64decode("""
-        iVBORw0KGgoAAAANSU2AAG123...
-        """)
-        EOF
-        # Create default vector/color launcher icon fallback
-        cat << 'EOF' > app/src/main/res/mipmap-hdpi/ic_launcher.png
-        EOF
-        cp app/src/main/res/mipmap-hdpi/ic_launcher.png app/src/main/res/mipmap-mdpi/ic_launcher.png
-        cp app/src/main/res/mipmap-hdpi/ic_launcher.png app/src/main/res/mipmap-xhdpi/ic_launcher.png
-        cp app/src/main/res/mipmap-hdpi/ic_launcher.png app/src/main/res/mipmap-xxhdpi/ic_launcher.png
-        cp app/src/main/res/mipmap-hdpi/ic_launcher.png app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+        # SVG/PNG icon representation generated for Auto Clicker icon
+        icon_svg = '''<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+          <rect width="512" height="512" rx="120" fill="#1E1B4B"/>
+          <circle cx="256" cy="256" r="180" fill="#312E81" stroke="#6366F1" stroke-width="12"/>
+          <path d="M 210 130 L 210 320 L 260 270 L 300 360 L 340 340 L 300 250 L 370 250 Z" fill="#F43F5E" stroke="#FFFFFF" stroke-width="10" stroke-linejoin="round"/>
+          <circle cx="256" cy="110" r="16" fill="#60A5FA"/>
+          <circle cx="390" cy="256" r="16" fill="#60A5FA"/>
+          <circle cx="256" cy="402" r="16" fill="#60A5FA"/>
+          <circle cx="122" cy="256" r="16" fill="#60A5FA"/>
+        </svg>'''
 
-    - name: Write Android Manifest and Layout
+        # Create simple custom launcher icon
+        sizes = {
+            'mipmap-mdpi': 48,
+            'mipmap-hdpi': 72,
+            'mipmap-xhdpi': 96,
+            'mipmap-xxhdpi': 144,
+            'mipmap-xxxhdpi': 192
+        }
+
+        # Generate smooth icons
+        for folder, sz in sizes.items():
+            img = Image.new('RGBA', (sz, sz), color=(30, 27, 75, 255))
+            # Draw cursor representation
+            from PIL import ImageDraw
+            draw = ImageDraw.Draw(img)
+            pad = sz // 8
+            draw.rectangle([pad, pad, sz - pad, sz - pad], fill=(49, 46, 129), outline=(99, 102, 241), width=max(1, sz//24))
+            
+            # Target cross/cursor symbol inside
+            cx, cy = sz // 2, sz // 2
+            r = sz // 4
+            draw.ellipse([cx - r, cy - r, cx + r, cy + r], outline=(244, 63, 94), width=max(2, sz//16))
+            draw.ellipse([cx - r//2, cy - r//2, cx + r//2, cy + r//2], fill=(244, 63, 94))
+            
+            img.save(f'app/src/main/res/{folder}/ic_launcher.png', 'PNG')
+            img.save(f'app/src/main/res/{folder}/ic_launcher_round.png', 'PNG')
+
+        print("Successfully generated custom app icons for all densities!")
+        EOF
+        python make_icons.py
+
+    - name: Write Android Manifest, Layout and Java Files
       run: |
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
@@ -120,6 +158,7 @@ jobs:
             <application
                 android:allowBackup="true"
                 android:icon="@mipmap/ic_launcher"
+                android:roundIcon="@mipmap/ic_launcher_round"
                 android:label="Auto Clicker"
                 android:supportsRtl="true"
                 android:theme="@style/Theme.AppCompat.Light.DarkActionBar">
@@ -475,7 +514,6 @@ jobs:
                     return;
                 }
 
-                // الكشف أولاً والتنبيه بمجرد ظهور الكلمة
                 if (scanAndClick(rootNode, targetWord, prefs)) {
                     currentStep++;
                     if (currentStep >= words.length) currentStep = 0;
@@ -493,7 +531,6 @@ jobs:
                 boolean matchDesc = desc != null && desc.toString().toLowerCase().contains(targetText.toLowerCase());
 
                 if (matchText || matchDesc) {
-                    // الكلمة ظهرت! إطلاق الإشعار والنغمة المخصصة فوراً
                     final boolean soundOn = prefs.getBoolean("sound_enabled", true);
                     final boolean notifOn = prefs.getBoolean("notification_enabled", true);
                     final String matchedWord = targetText;
@@ -504,7 +541,6 @@ jobs:
                         if (notifOn) sendNotification(matchedWord);
                     });
 
-                    // تنفيذ النقر مباشرة بدون إشعارات أو أصوات أثناء النقر نفسه
                     boolean clicked = node.performAction(AccessibilityNodeInfo.ACTION_CLICK);
                     Rect rect = new Rect();
                     node.getBoundsInScreen(rect);
@@ -583,3 +619,4 @@ jobs:
       with:
         name: AutoClicker-APK
         path: app/build/outputs/apk/debug/*.apk
+
