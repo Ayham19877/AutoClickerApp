@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Path
 import android.graphics.PixelFormat
+import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
