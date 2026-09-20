@@ -10,8 +10,6 @@ import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.net.Uri
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
 import android.provider.Settings
 import android.view.Gravity
 import android.view.WindowManager
@@ -24,30 +22,16 @@ class AutoClickService : AccessibilityService() {
 
     private var windowManager: WindowManager? = null
     private var floatingSwitch: Switch? = null
-    private val handler = Handler(Looper.getMainLooper())
     private var isClickingActive = false
 
-    // الكلمات المستهدفة التي طلبتها للبحث والضغط عليها تلقائياً
-    private val targetWords = listOf("Accept", "DETAILS", "CLAIM", "IT", "VIEW") 
-
-    private val scanAndClickRunnable = object : Runnable {
-        override fun run() {
-            if (isClickingActive) {
-                val rootNode = rootInActiveWindow
-                if (rootNode != null) {
-                    findAndClickNodeByText(rootNode)
-                    rootNode.recycle()
-                }
-                // إعادة الفحص كل ثانية للبحث عن الكلمات والضغط عليها فور ظهورها
-                handler.postDelayed(this, 1000)
-            }
-        }
-    }
+    // الكلمات المستهدفة التي طلبتها للبحث الفوري
+    private val targetWords = listOf("Accept", "DETAILS", "CLAIM", "IT", "VIEW")
 
     override fun onServiceConnected() {
         super.onServiceConnected()
         val info = AccessibilityServiceInfo().apply {
-            eventTypes = AccessibilityServiceInfo.TYPES_ALL_MASK
+            // استقبال جميع أحداث الشاشة وتغييرات النافذة بشكل لحظي تماماً مثل الماكرو
+            eventTypes = AccessibilityEvent.TYPES_ALL_MASK
             feedbackType = AccessibilityServiceInfo.FEEDBACK_ALL_MASK
             flags = AccessibilityServiceInfo.FLAG_DEFAULT or
                     AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS or
@@ -73,7 +57,7 @@ class AutoClickService : AccessibilityService() {
             windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
             floatingSwitch = Switch(this).apply {
-                text = " البحث والضغط الذكي "
+                text = " الماكرو الذكي (شغال) "
                 isChecked = false
                 setTextColor(android.graphics.Color.WHITE)
                 setBackgroundColor(android.graphics.Color.parseColor("#CC000000"))
@@ -81,11 +65,9 @@ class AutoClickService : AccessibilityService() {
                 setOnCheckedChangeListener { _, isChecked ->
                     isClickingActive = isChecked
                     if (isChecked) {
-                        Toast.makeText(this@AutoClickService, "تم بدء البحث عن الكلمات المطلوبة", Toast.LENGTH_SHORT).show()
-                        handler.post(scanAndClickRunnable)
+                        Toast.makeText(this@AutoClickService, "تم تفعيل الماكرو الفوري", Toast.LENGTH_SHORT).show()
                     } else {
-                        Toast.makeText(this@AutoClickService, "تم إيقاف البحث", Toast.LENGTH_SHORT).show()
-                        handler.removeCallbacks(scanAndClickRunnable)
+                        Toast.makeText(this@AutoClickService, "تم إيقاف الماكرو", Toast.LENGTH_SHORT).show()
                     }
                 }
             }
@@ -114,11 +96,36 @@ class AutoClickService : AccessibilityService() {
         }
     }
 
-    private fun findAndClickNodeByText(node: AccessibilityNodeInfo) {
+    // هذه الدالة تعمل بشكل لحظي فور حدوث أي تغيير على الشاشة (مثل الماكرو)
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        if (!isClickingActive) return
+
+        val rootNode = rootInActiveWindow ?: return
+        try {
+            if (searchAndClickNode(rootNode)) {
+                // إذا تم العثور على الكلمة والضغط عليها، نتوقف مؤقتاً لتفادي التكرار السريع جداً
+                isClickingActive = false
+                floatingSwitch?.isChecked = false
+                handlerPostReset()
+            }
+        } finally {
+            rootNode.recycle()
+        }
+    }
+
+    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+    private fun handlerPostReset() {
+        // إعادة تفعيل الماكرو تلقائياً بعد ثانيتين ليتابع التقاط الطلبات الجديدة
+        handler.postDelayed({
+            isClickingActive = true
+            floatingSwitch?.isChecked = true
+        }, 2000)
+    }
+
+    private fun searchAndClickNode(node: AccessibilityNodeInfo): Boolean {
         val text = node.text?.toString() ?: ""
         val contentDesc = node.contentDescription?.toString() ?: ""
 
-        // التحقق مما إذا كانت العقدة تحتوي على إحدى الكلمات المستهدفة (بغض النظر عن حالة الأحرف)
         for (target in targetWords) {
             if (text.contains(target, ignoreCase = true) || contentDesc.contains(target, ignoreCase = true)) {
                 val rect = Rect()
@@ -127,21 +134,28 @@ class AutoClickService : AccessibilityService() {
                     val centerX = rect.exactCenterX()
                     val centerY = rect.exactCenterY()
                     
-                    // محاكاة الضغط على مركز الكلمة مباشرة
+                    // تنفيذ النقرة الفورية على إحداثيات الكلمة
                     clickOnCoordinates(centerX, centerY)
-                    return 
+                    return true
                 }
             }
         }
 
-        // البحث التنازلي داخل العناصر الفرعية
+        // البحث العميق داخل العقد الفرعية للشاشة
         for (i in 0 until node.childCount) {
             val child = node.getChild(i)
             if (child != null) {
-                findAndClickNodeByText(child)
-                child.recycle()
+                try {
+                    if (searchAndClickNode(child)) {
+                        child.recycle()
+                        return true
+                    }
+                } finally {
+                    child.recycle()
+                }
             }
         }
+        return false
     }
 
     private fun clickOnCoordinates(x: Float, y: Float) {
@@ -155,8 +169,6 @@ class AutoClickService : AccessibilityService() {
             dispatchGesture(desc, null, null)
         }
     }
-
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
 
     override fun onInterrupt() {
         removeFloatingWindow()
