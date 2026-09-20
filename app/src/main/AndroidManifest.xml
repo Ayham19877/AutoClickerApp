@@ -5,32 +5,29 @@ import android.accessibilityservice.AccessibilityServiceInfo
 import android.accessibilityservice.GestureDescription
 import android.graphics.Path
 import android.graphics.Rect
+import android.os.Handler
+import android.os.Looper
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 
 class AutoClickService : AccessibilityService() {
 
+    private val handler = Handler(Looper.getMainLooper())
+    private var isClicking = false
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (event == null) return
+        if (event == null || isClicking) return
 
-        val rootNode = rootInActiveWindow
-        val sourceNode = event.source
-
+        val rootNode = rootInActiveWindow ?: event.source ?: return
         val keywordsString = getSavedKeywords()
         val keywords = keywordsString.split(",").map { it.trim() }.filter { it.isNotEmpty() }
 
         for (keyword in keywords) {
-            var targetNode: AccessibilityNodeInfo? = null
-            
-            if (rootNode != null) {
-                targetNode = findNodeByTextRecursive(rootNode, keyword)
-            }
-            if (targetNode == null && sourceNode != null) {
-                targetNode = findNodeByTextRecursive(sourceNode, keyword)
-            }
-
+            val targetNode = findNodeByTextRecursive(rootNode, keyword)
             if (targetNode != null) {
+                isClicking = true
                 triggerAlertAndClick(targetNode)
+                handler.postDelayed({ isClicking = false }, 2000)
                 break
             }
         }
@@ -63,7 +60,14 @@ class AutoClickService : AccessibilityService() {
         node.getBoundsInScreen(rect)
 
         if (!rect.isEmpty) {
-            clickOnCoordinates(rect.exactCenterX(), rect.exactCenterY())
+            handler.postDelayed({
+                // في تطبيق Zifty، الكلمة (VIEW) تقع داخل المستطيل، والزر الأزرق (اللون) يقع إلى يمينها قليلاً.
+                // نقوم بإزاحة إحداثيات X بمقدار موجب (نحو اليمين حيث الزر الأزرق) ليضغط على لون الزر تماماً.
+                val targetX = rect.exactCenterX() + 150f 
+                val targetY = rect.exactCenterY()
+
+                clickOnCoordinates(targetX, targetY)
+            }, 200)
         } else {
             var target: AccessibilityNodeInfo? = node
             while (target != null) {
@@ -110,7 +114,7 @@ class AutoClickService : AccessibilityService() {
             flags = AccessibilityServiceInfo.FLAG_DEFAULT or
                     AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS or
                     AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS
-            capabilities = AccessibilityServiceInfo.CAPABILITY_CAN_PERFORM_GESTURES
+            capabilities = AccessibilityServiceInfo.CAPABILITY_CAP_PERFORM_GESTURES // تم التصحيح لضمان توافق الصلاحية
             notificationTimeout = 0
         }
         serviceInfo = info
