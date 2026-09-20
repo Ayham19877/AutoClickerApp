@@ -10,6 +10,8 @@ import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.net.Uri
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.view.Gravity
 import android.view.WindowManager
@@ -23,15 +25,15 @@ class AutoClickService : AccessibilityService() {
     private var windowManager: WindowManager? = null
     private var floatingSwitch: Switch? = null
     private var isClickingActive = false
+    private val handler = Handler(Looper.getMainLooper())
 
-    // الكلمات المستهدفة التي طلبتها للبحث الفوري
+    // الكلمات المستهدفة بدقة
     private val targetWords = listOf("Accept", "DETAILS", "CLAIM", "IT", "VIEW")
 
     override fun onServiceConnected() {
         super.onServiceConnected()
         val info = AccessibilityServiceInfo().apply {
-            // استقبال جميع أحداث الشاشة وتغييرات النافذة بشكل لحظي تماماً مثل الماكرو
-            eventTypes = AccessibilityEvent.TYPES_ALL_MASK
+            eventTypes = AccessibilityServiceInfo.TYPES_ALL_MASK
             feedbackType = AccessibilityServiceInfo.FEEDBACK_ALL_MASK
             flags = AccessibilityServiceInfo.FLAG_DEFAULT or
                     AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS or
@@ -57,7 +59,7 @@ class AutoClickService : AccessibilityService() {
             windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
             floatingSwitch = Switch(this).apply {
-                text = " الماكرو الذكي (شغال) "
+                text = " الماكرو الذكي (يعمل) "
                 isChecked = false
                 setTextColor(android.graphics.Color.WHITE)
                 setBackgroundColor(android.graphics.Color.parseColor("#CC000000"))
@@ -65,7 +67,7 @@ class AutoClickService : AccessibilityService() {
                 setOnCheckedChangeListener { _, isChecked ->
                     isClickingActive = isChecked
                     if (isChecked) {
-                        Toast.makeText(this@AutoClickService, "تم تفعيل الماكرو الفوري", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@AutoClickService, "تم تفعيل البحث والضغط", Toast.LENGTH_SHORT).show()
                     } else {
                         Toast.makeText(this@AutoClickService, "تم إيقاف الماكرو", Toast.LENGTH_SHORT).show()
                     }
@@ -96,30 +98,23 @@ class AutoClickService : AccessibilityService() {
         }
     }
 
-    // هذه الدالة تعمل بشكل لحظي فور حدوث أي تغيير على الشاشة (مثل الماكرو)
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (!isClickingActive) return
 
         val rootNode = rootInActiveWindow ?: return
         try {
             if (searchAndClickNode(rootNode)) {
-                // إذا تم العثور على الكلمة والضغط عليها، نتوقف مؤقتاً لتفادي التكرار السريع جداً
+                // إيقاف مؤقت لمنع التكرار المفرط ثم إعادة التفعيل تلقائياً
                 isClickingActive = false
-                floatingSwitch?.isChecked = false
-                handlerPostReset()
+                handler.postDelayed({
+                    if (floatingSwitch?.isChecked == true) {
+                        isClickingActive = true
+                    }
+                }, 1500)
             }
         } finally {
             rootNode.recycle()
         }
-    }
-
-    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
-    private fun handlerPostReset() {
-        // إعادة تفعيل الماكرو تلقائياً بعد ثانيتين ليتابع التقاط الطلبات الجديدة
-        handler.postDelayed({
-            isClickingActive = true
-            floatingSwitch?.isChecked = true
-        }, 2000)
     }
 
     private fun searchAndClickNode(node: AccessibilityNodeInfo): Boolean {
@@ -127,6 +122,7 @@ class AutoClickService : AccessibilityService() {
         val contentDesc = node.contentDescription?.toString() ?: ""
 
         for (target in targetWords) {
+            // مطابقة النصوص بغض النظر عن حالة الأحرف الكبيرة والصغيرة
             if (text.contains(target, ignoreCase = true) || contentDesc.contains(target, ignoreCase = true)) {
                 val rect = Rect()
                 node.getBoundsInScreen(rect)
@@ -134,14 +130,13 @@ class AutoClickService : AccessibilityService() {
                     val centerX = rect.exactCenterX()
                     val centerY = rect.exactCenterY()
                     
-                    // تنفيذ النقرة الفورية على إحداثيات الكلمة
                     clickOnCoordinates(centerX, centerY)
                     return true
                 }
             }
         }
 
-        // البحث العميق داخل العقد الفرعية للشاشة
+        // البحث داخل العقد والأبناء بشكل كامل
         for (i in 0 until node.childCount) {
             val child = node.getChild(i)
             if (child != null) {
@@ -190,3 +185,4 @@ class AutoClickService : AccessibilityService() {
         }
     }
 }
+
