@@ -10,20 +10,23 @@ class AutoClickService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
 
-        // استخدام مصدر الحدث (event.source) أولاً لالتقاط الشاشة الحية وتطبيقات التوصيل مثل Zifty
-        val sourceNode = event.source
+        // فحص النافذة النشطة بالكامل أولاً لضمان قراءة كل عناصر واجهة تطبيق Zifty بدقة
         val rootNode = rootInActiveWindow
+        val sourceNode = event.source
 
         val keywordsString = getSavedKeywords()
         val keywords = keywordsString.split(",").map { it.trim() }.filter { it.isNotEmpty() }
 
         for (keyword in keywords) {
             var targetNode: AccessibilityNodeInfo? = null
-            if (sourceNode != null) {
-                targetNode = findNodeByTextRecursive(sourceNode, keyword)
-            }
-            if (targetNode == null && rootNode != null) {
+            
+            // البحث الشامل في النافذة النشطة
+            if (rootNode != null) {
                 targetNode = findNodeByTextRecursive(rootNode, keyword)
+            }
+            // أو البحث في مصدر الحدث إذا لم توجد في النافذة النشطة
+            if (targetNode == null && sourceNode != null) {
+                targetNode = findNodeByTextRecursive(sourceNode, keyword)
             }
 
             if (targetNode != null) {
