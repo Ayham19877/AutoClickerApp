@@ -4,13 +4,14 @@ import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.accessibilityservice.GestureDescription
 import android.content.Context
+import android.content.Intent
 import android.graphics.Path
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import android.view.Gravity
-import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.widget.Switch
@@ -19,7 +20,7 @@ import android.widget.Toast
 class AutoClickService : AccessibilityService() {
 
     private var windowManager: WindowManager? = null
-    private var floatingView: Switch? = null
+    private var floatingSwitch: Switch? = null
     private val handler = Handler(Looper.getMainLooper())
     private var isClickingActive = false
 
@@ -36,7 +37,7 @@ class AutoClickService : AccessibilityService() {
                     }
                 }, 220)
 
-                // تكرار الحلقة باستمرار كل 600 ميلي ثانية
+                // تكرار الحلقة باستمرار
                 handler.postDelayed(this, 600)
             }
         }
@@ -55,51 +56,60 @@ class AutoClickService : AccessibilityService() {
         }
         serviceInfo = info
 
-        showFloatingWindow()
+        // التحقق من صلاحية النافذة العائمة، وإذا لم تكن مجهزة يتم فتح إعداداتها فوراً
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+            val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+            Toast.makeText(this, "يرجى السماح بالتطبيق بالظهور فوق التطبيقات", Toast.LENGTH_LONG).show()
+        } else {
+            showFloatingWindow()
+        }
     }
 
     private fun showFloatingWindow() {
-        windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        try {
+            if (floatingSwitch != null) return
+            windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
-        // إنشاء زر عائم عبارة عن Switch للتحكم بالتشغيل والإيقاف مباشرة من فوق التطبيقات
-        floatingView = Switch(this).apply {
-            text = " التكبيس المستمر "
-            isChecked = false
-            setTextColor(android.graphics.Color.WHITE)
-            setBackgroundColor(android.graphics.Color.parseColor("#CC000000"))
-            setPadding(30, 30, 30, 30)
-            setOnCheckedChangeListener { _, isChecked ->
-                isClickingActive = isChecked
-                if (isChecked) {
-                    Toast.makeText(this@AutoClickService, "تم بدء التكبيس المستمر", Toast.LENGTH_SHORT).show()
-                    handler.post(clickRunnable)
-                } else {
-                    Toast.makeText(this@AutoClickService, "تم إيقاف التكبيس", Toast.LENGTH_SHORT).show()
-                    handler.removeCallbacks(clickRunnable)
+            floatingSwitch = Switch(this).apply {
+                text = " التكبيس المستمر "
+                isChecked = false
+                setTextColor(android.graphics.Color.WHITE)
+                setBackgroundColor(android.graphics.Color.parseColor("#CC000000"))
+                setPadding(35, 35, 35, 35)
+                setOnCheckedChangeListener { _, isChecked ->
+                    isClickingActive = isChecked
+                    if (isChecked) {
+                        Toast.makeText(this@AutoClickService, "تم بدء التكبيس المستمر", Toast.LENGTH_SHORT).show()
+                        handler.post(clickRunnable)
+                    } else {
+                        Toast.makeText(this@AutoClickService, "تم إيقاف التكبيس", Toast.LENGTH_SHORT).show()
+                        handler.removeCallbacks(clickRunnable)
+                    }
                 }
             }
-        }
 
-        val layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-        } else {
-            WindowManager.LayoutParams.TYPE_PHONE
-        }
+            val layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            } else {
+                WindowManager.LayoutParams.TYPE_PHONE
+            }
 
-        val params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            layoutType,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-            PixelFormat.TRANSLUCENT
-        ).apply {
-            gravity = Gravity.TOP or Gravity.START
-            x = 100
-            y = 200
-        }
+            val params = WindowManager.LayoutParams(
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                layoutType,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                PixelFormat.TRANSLUCENT
+            ).apply {
+                gravity = Gravity.TOP or Gravity.START
+                x = 100
+                y = 300
+            }
 
-        try {
-            windowManager?.addView(floatingView, params)
+            windowManager?.addView(floatingSwitch, params)
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -116,9 +126,7 @@ class AutoClickService : AccessibilityService() {
         }
     }
 
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        // تم إلغاء شرط الكلمات ليعمل التكبيس المستمر مباشرة عبر الزر العائم
-    }
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
 
     override fun onInterrupt() {
         removeFloatingWindow()
@@ -131,9 +139,9 @@ class AutoClickService : AccessibilityService() {
 
     private fun removeFloatingWindow() {
         try {
-            if (floatingView != null) {
-                windowManager?.removeView(floatingView)
-                floatingView = null
+            if (floatingSwitch != null) {
+                windowManager?.removeView(floatingSwitch)
+                floatingSwitch = null
             }
         } catch (e: Exception) {
             e.printStackTrace()
