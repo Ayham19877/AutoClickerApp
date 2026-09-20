@@ -2,70 +2,45 @@ package com.example.autoclicker
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
+import android.accessibilityservice.GestureDescription
+import android.content.Context
+import android.graphics.Path
+import android.graphics.PixelFormat
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.view.Gravity
+import android.view.View
+import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
-import android.view.accessibility.AccessibilityNodeInfo
+import android.widget.Switch
+import android.widget.Toast
 
 class AutoClickService : AccessibilityService() {
 
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (event == null) return
+    private var windowManager: WindowManager? = null
+    private var floatingView: Switch? = null
+    private val handler = Handler(Looper.getMainLooper())
+    private var isClickingActive = false
 
-        val rootNode = rootInActiveWindow ?: event.source ?: return
-        
-        val keywordsString = getSavedKeywords() 
-        val keywords = keywordsString.split(",").map { it.trim() }
+    private val clickRunnable = object : Runnable {
+        override fun run() {
+            if (isClickingActive) {
+                // 1. النقرة الأولى على الإحداثيات (549, 889)
+                clickOnCoordinates(549f, 889f)
 
-        for (keyword in keywords) {
-            if (keyword.isNotEmpty()) {
-                val targetNode = findNodeByTextRecursive(rootNode, keyword)
-                if (targetNode != null) {
-                    triggerAlertAndClick(targetNode)
-                    break
-                }
+                // 2. النقرة الثانية بعد 220 ميلي ثانية على الإحداثيات (593, 1453)
+                handler.postDelayed({
+                    if (isClickingActive) {
+                        clickOnCoordinates(593f, 1453f)
+                    }
+                }, 220)
+
+                // تكرار الحلقة باستمرار كل 600 ميلي ثانية
+                handler.postDelayed(this, 600)
             }
         }
     }
-
-    private fun findNodeByTextRecursive(node: AccessibilityNodeInfo?, targetText: String): AccessibilityNodeInfo? {
-        if (node == null) return null
-
-        val text = node.text
-        val desc = node.contentDescription
-        val targetUpper = targetText.uppercase().trim()
-
-        if ((text != null && text.toString().uppercase().contains(targetUpper)) ||
-            (desc != null && desc.toString().uppercase().contains(targetUpper))) {
-            if (node.isClickable || (node.parent != null && node.parent.isClickable)) {
-                return node
-            }
-        }
-
-        for (i in 0 until node.childCount) {
-            val child = node.getChild(i)
-            val result = findNodeByTextRecursive(child, targetText)
-            if (result != null) {
-                return result
-            }
-        }
-        return null
-    }
-
-    private fun triggerAlertAndClick(node: AccessibilityNodeInfo) {
-        var target = node
-        while (!target.isClickable && target.parent != null) {
-            target = target.parent
-        }
-        if (target.isClickable) {
-            target.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-        }
-    }
-
-    private fun getSavedKeywords(): String {
-        val prefs = getSharedPreferences("AutoClickerPrefs", MODE_PRIVATE)
-        return prefs.getString("keywords", "DETAILS, CLAIM, TASK, YES, VIEW, Accept") ?: ""
-    }
-
-    override fun onInterrupt() {}
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -75,8 +50,93 @@ class AutoClickService : AccessibilityService() {
             flags = AccessibilityServiceInfo.FLAG_DEFAULT or
                     AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS or
                     AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS
+            capabilities = AccessibilityServiceInfo.CAPABILITY_CAN_PERFORM_GESTURES
             notificationTimeout = 0
         }
         serviceInfo = info
+
+        showFloatingWindow()
+    }
+
+    private fun showFloatingWindow() {
+        windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+
+        // إنشاء زر عائم عبارة عن Switch للتحكم بالتشغيل والإيقاف مباشرة من فوق التطبيقات
+        floatingView = Switch(this).apply {
+            text = " التكبيس المستمر "
+            isChecked = false
+            setTextColor(android.graphics.Color.WHITE)
+            setBackgroundColor(android.graphics.Color.parseColor("#CC000000"))
+            setPadding(30, 30, 30, 30)
+            setOnCheckedChangeListener { _, isChecked ->
+                isClickingActive = isChecked
+                if (isChecked) {
+                    Toast.makeText(this@AutoClickService, "تم بدء التكبيس المستمر", Toast.LENGTH_SHORT).show()
+                    handler.post(clickRunnable)
+                } else {
+                    Toast.makeText(this@AutoClickService, "تم إيقاف التكبيس", Toast.LENGTH_SHORT).show()
+                    handler.removeCallbacks(clickRunnable)
+                }
+            }
+        }
+
+        val layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+        } else {
+            WindowManager.LayoutParams.TYPE_PHONE
+        }
+
+        val params = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            layoutType,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            x = 100
+            y = 200
+        }
+
+        try {
+            windowManager?.addView(floatingView, params)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun clickOnCoordinates(x: Float, y: Float) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            val path = Path().apply {
+                moveTo(x, y)
+            }
+            val stroke = GestureDescription.StrokeDescription(path, 0, 50)
+            val desc = GestureDescription.Builder().addStroke(stroke).build()
+            dispatchGesture(desc, null, null)
+        }
+    }
+
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        // تم إلغاء شرط الكلمات ليعمل التكبيس المستمر مباشرة عبر الزر العائم
+    }
+
+    override fun onInterrupt() {
+        removeFloatingWindow()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        removeFloatingWindow()
+    }
+
+    private fun removeFloatingWindow() {
+        try {
+            if (floatingView != null) {
+                windowManager?.removeView(floatingView)
+                floatingView = null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 }
