@@ -1,24 +1,98 @@
-<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.autoclicker">
+package com.example.autoclicker
 
-    <application
-        android:allowBackup="true"
-        android:label="Auto Clicker App"
-        android:supportsRtl="true"
-        android:theme="@android:style/Theme.DeviceDefault">
+import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.AccessibilityServiceInfo
+import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityNodeInfo
 
-        <service
-            android:name=".AutoClickService"
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.accessibilityservice.AccessibilityService" />
-            </intent-filter>
-            <meta-data
-                android:name="android.accessibilityservice"
-                android:resource="@xml/accessibility_service_config" />
-        </service>
+class AutoClickService : AccessibilityService() {
 
-    </application>
-</manifest>
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        if (event == null) return
+
+        // استخدام مصدر الحدث (event.source) أولاً لالتقاط الشاشة الحية وتطبيقات التوصيل مثل Zifty
+        val sourceNode = event.source
+        val rootNode = rootInActiveWindow
+
+        val keywordsString = getSavedKeywords()
+        val keywords = keywordsString.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+
+        for (keyword in keywords) {
+            var targetNode: AccessibilityNodeInfo? = null
+            if (sourceNode != null) {
+                targetNode = findNodeByTextRecursive(sourceNode, keyword)
+            }
+            if (targetNode == null && rootNode != null) {
+                targetNode = findNodeByTextRecursive(rootNode, keyword)
+            }
+
+            if (targetNode != null) {
+                triggerAlertAndClick(targetNode)
+                break
+            }
+        }
+    }
+
+    private fun findNodeByTextRecursive(node: AccessibilityNodeInfo?, targetText: String): AccessibilityNodeInfo? {
+        if (node == null) return null
+
+        val text = node.text
+        val desc = node.contentDescription
+        val targetUpper = targetText.uppercase().trim()
+
+        if ((text != null && text.toString().uppercase().contains(targetUpper)) ||
+            (desc != null && desc.toString().uppercase().contains(targetUpper))) {
+            
+            // التأكد من أن العنصر أو أحد والديه قابل للنقر الفعلي
+            if (node.isClickable) {
+                return node
+            }
+            var parent = node.parent
+            while (parent != null) {
+                if (parent.isClickable) {
+                    return parent
+                }
+                parent = parent.parent
+            }
+        }
+
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i)
+            val result = findNodeByTextRecursive(child, targetText)
+            if (result != null) {
+                return result
+            }
+        }
+        return null
+    }
+
+    private fun triggerAlertAndClick(node: AccessibilityNodeInfo) {
+        var target = node
+        while (!target.isClickable && target.parent != null) {
+            target = target.parent
+        }
+        if (target.isClickable) {
+            target.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+        }
+    }
+
+    private fun getSavedKeywords(): String {
+        val prefs = getSharedPreferences("AutoClickerPrefs", MODE_PRIVATE)
+        return prefs.getString("keywords", "Accept, DETAILS, CLAIM, IT, VIEW, pickup") ?: ""
+    }
+
+    override fun onInterrupt() {}
+
+    override fun onServiceConnected() {
+        super.onServiceConnected()
+        val info = AccessibilityServiceInfo().apply {
+            eventTypes = AccessibilityServiceInfo.TYPES_ALL_MASK
+            feedbackType = AccessibilityServiceInfo.FEEDBACK_ALL_MASK
+            flags = AccessibilityServiceInfo.FLAG_DEFAULT or
+                    AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS or
+                    AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS
+            notificationTimeout = 0
+        }
+        serviceInfo = info
+    }
+}
