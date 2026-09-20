@@ -1,148 +1,24 @@
-package com.example.autoclicker
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-accessibilityservice.AccessibilityService
-import android.accessibilityservice.AccessibilityServiceInfo
-import android.accessibilityservice.GestureDescription
-import android.content.Context
-import android.graphics.Path
-import android.graphics.PixelFormat
-import android.os.Build
-import android.os.Handler
-import android.os.Looper
-import android.view.Gravity
-import android.view.LayoutInflater
-import android.view.View
-import android.view.WindowManager
-import android.view.accessibility.AccessibilityEvent
-import android.widget.Switch
-import android.widget.Toast
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
 
-class AutoClickService : AccessibilityService() {
-
-    private var windowManager: WindowManager? = null
-    private var floatingView: View? = null
-    private val handler = Handler(Looper.getMainLooper())
-    private var isClickingActive = false
-
-    private val clickRunnable = object : Runnable {
-        override fun run() {
-            if (isClickingActive) {
-                // تنفيذ النقرة الأولى على الإحداثيات المحددة
-                clickOnCoordinates(549f, 889f)
-
-                // النقرة الثانية بعد المهلة (220 ميلي ثانية)
-                handler.postDelayed({
-                    if (isClickingActive) {
-                        clickOnCoordinates(593f, 1453f)
-                    }
-                }, 220)
-
-                // إعادة تكرار الحلقة باستمرار (مع وقت انتظار الكلي للشفل)
-                handler.postDelayed(this, 600)
-            }
-        }
-    }
-
-    override fun onServiceConnected() {
-        super.onServiceConnected()
-        val info = AccessibilityServiceInfo().apply {
-            eventTypes = AccessibilityServiceInfo.TYPES_ALL_MASK
-            feedbackType = AccessibilityServiceInfo.FEEDBACK_ALL_MASK
-            flags = AccessibilityServiceInfo.FLAG_DEFAULT or
-                    AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS or
-                    AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS
-            capabilities = AccessibilityServiceInfo.CAPABILITY_CAN_PERFORM_GESTURES
-            notificationTimeout = 0
-        }
-        serviceInfo = info
-
-        // إظهار الزر العائم فور تشغيل الخدمة
-        showFloatingWindow()
-    }
-
-    private fun showFloatingWindow() {
-        windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="برمجة الأيهم"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.AutoClickerApp">
         
-        // تصميم بسيط للزر العائم يحتوي على Switch للتشغيل والإيقاف
-        val layoutInflater = LayoutInflater.from(this)
-        floatingView = layoutInflater.inflate(android.R.layout.activity_list_item, null) // أو تخطيط مخصص
-        
-        // لإنشاء زر عائم احترافي، سنقوم بإنشاء سويتش برمجي مباشر
-        val switch = Switch(this).apply {
-            text = "الأوتو كليكر"
-            isChecked = false
-            setTextColor(android.graphics.Color.WHITE)
-            setBackgroundColor(android.graphics.Color.parseColor("#CC000000"))
-            setPadding(20, 20, 20, 20)
-            setOnCheckedChangeListener { _, isChecked ->
-                isClickingActive = isChecked
-                if (isChecked) {
-                    Toast.makeText(this@AutoClickService, "تم بدء التكبيس المستمر", Toast.LENGTH_SHORT).show()
-                    handler.post(clickRunnable)
-                } else {
-                    Toast.makeText(this@AutoClickService, "تم إيقاف التكبيس", Toast.LENGTH_SHORT).show()
-                    handler.removeCallbacks(clickRunnable)
-                }
-            }
-        }
+        <service
+            android:name=".AutoClickService"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+        </service>
 
-        val LAYOUT_TYPE = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-        } else {
-            WindowManager.LayoutParams.TYPE_PHONE
-        }
+    </application>
 
-        val params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            LAYOUT_TYPE,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-            PixelFormat.TRANSLUCENT
-        ).apply {
-            gravity = Gravity.TOP or Gravity.START
-            x = 100
-            y = 200
-        }
-
-        try {
-            windowManager?.addView(switch, params)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    private fun clickOnCoordinates(x: Float, y: Float) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            val path = Path().apply {
-                moveTo(x, y)
-            }
-            val stroke = GestureDescription.StrokeDescription(path, 0, 50)
-            val desc = GestureDescription.Builder().addStroke(stroke).build()
-            dispatchGesture(desc, null, null)
-        }
-    }
-
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        // لا نحتاج لفحص الكلمات بعد الآن، التكبيس يعتمد كلياً على الزر العائم وحلقة التكرار المستمرة
-    }
-
-    override fun onInterrupt() {
-        removeFloatingWindow()
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        removeFloatingWindow()
-    }
-
-    private fun removeFloatingWindow() {
-        try {
-            if (floatingView != null) {
-                windowManager?.removeView(floatingView)
-                floatingView = null
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-}
+</manifest>
