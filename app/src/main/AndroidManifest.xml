@@ -10,21 +10,19 @@ class AutoClickService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
 
-        // فحص النافذة النشطة بالكامل أولاً لضمان قراءة كل عناصر واجهة تطبيق Zifty بدقة
         val rootNode = rootInActiveWindow
         val sourceNode = event.source
 
         val keywordsString = getSavedKeywords()
+        // تنظيف الكلمات وحذف أي فراغات أو فواصل زائدة
         val keywords = keywordsString.split(",").map { it.trim() }.filter { it.isNotEmpty() }
 
         for (keyword in keywords) {
             var targetNode: AccessibilityNodeInfo? = null
             
-            // البحث الشامل في النافذة النشطة
             if (rootNode != null) {
                 targetNode = findNodeByTextRecursive(rootNode, keyword)
             }
-            // أو البحث في مصدر الحدث إذا لم توجد في النافذة النشطة
             if (targetNode == null && sourceNode != null) {
                 targetNode = findNodeByTextRecursive(sourceNode, keyword)
             }
@@ -45,18 +43,7 @@ class AutoClickService : AccessibilityService() {
 
         if ((text != null && text.toString().uppercase().contains(targetUpper)) ||
             (desc != null && desc.toString().uppercase().contains(targetUpper))) {
-            
-            // التأكد من أن العنصر أو أحد والديه قابل للنقر الفعلي
-            if (node.isClickable) {
-                return node
-            }
-            var parent = node.parent
-            while (parent != null) {
-                if (parent.isClickable) {
-                    return parent
-                }
-                parent = parent.parent
-            }
+            return node
         }
 
         for (i in 0 until node.childCount) {
@@ -70,17 +57,24 @@ class AutoClickService : AccessibilityService() {
     }
 
     private fun triggerAlertAndClick(node: AccessibilityNodeInfo) {
-        var target = node
-        while (!target.isClickable && target.parent != null) {
+        var target: AccessibilityNodeInfo? = node
+        
+        // الصعود للأعلى للبحث عن أول عنصر قابل للنقر (مثل الزر الأزرق VIEW في Zifty)
+        while (target != null) {
+            if (target.isClickable) {
+                target.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                return
+            }
             target = target.parent
         }
-        if (target.isClickable) {
-            target.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-        }
+        
+        // إذا لم يُعثر على أب قابل للنقر، نقوم بالضغط المباشر على العنصر نفسه
+        node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
     }
 
     private fun getSavedKeywords(): String {
         val prefs = getSharedPreferences("AutoClickerPrefs", MODE_PRIVATE)
+        // قراءة الكلمات التي أدخلها المستخدم فعلياً في التطبيق بدون فرض كلمات افتراضية تعيقها
         return prefs.getString("keywords", "Accept, DETAILS, CLAIM, IT, VIEW, pickup") ?: ""
     }
 
