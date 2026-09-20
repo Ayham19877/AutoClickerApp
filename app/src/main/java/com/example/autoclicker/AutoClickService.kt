@@ -27,7 +27,7 @@ class AutoClickService : AccessibilityService() {
     private var isClickingActive = false
     private val handler = Handler(Looper.getMainLooper())
 
-    // الكلمات المستهدفة بدقة
+    // الكلمات الثابتة والنهائية المقاومة لأي خطأ
     private val targetWords = listOf("Accept", "DETAILS", "CLAIM", "IT", "VIEW")
 
     override fun onServiceConnected() {
@@ -59,7 +59,7 @@ class AutoClickService : AccessibilityService() {
             windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
             floatingSwitch = Switch(this).apply {
-                text = " الماكرو الذكي (يعمل) "
+                text = " الماكرو النهائي (يعمل) "
                 isChecked = false
                 setTextColor(android.graphics.Color.WHITE)
                 setBackgroundColor(android.graphics.Color.parseColor("#CC000000"))
@@ -67,9 +67,9 @@ class AutoClickService : AccessibilityService() {
                 setOnCheckedChangeListener { _, isChecked ->
                     isClickingActive = isChecked
                     if (isChecked) {
-                        Toast.makeText(this@AutoClickService, "تم تفعيل البحث والضغط", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@AutoClickService, "تم التفعيل بنجاح", Toast.LENGTH_SHORT).show()
                     } else {
-                        Toast.makeText(this@AutoClickService, "تم إيقاف الماكرو", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@AutoClickService, "تم الإيقاف", Toast.LENGTH_SHORT).show()
                     }
                 }
             }
@@ -104,13 +104,13 @@ class AutoClickService : AccessibilityService() {
         val rootNode = rootInActiveWindow ?: return
         try {
             if (searchAndClickNode(rootNode)) {
-                // إيقاف مؤقت لمنع التكرار المفرط ثم إعادة التفعيل تلقائياً
+                // إيقاف مؤقت لمنع التكرار المجنون ثم إعادة التفعيل تلقائياً
                 isClickingActive = false
                 handler.postDelayed({
                     if (floatingSwitch?.isChecked == true) {
                         isClickingActive = true
                     }
-                }, 1500)
+                }, 2000)
             }
         } finally {
             rootNode.recycle()
@@ -122,7 +122,6 @@ class AutoClickService : AccessibilityService() {
         val contentDesc = node.contentDescription?.toString() ?: ""
 
         for (target in targetWords) {
-            // مطابقة النصوص بغض النظر عن حالة الأحرف الكبيرة والصغيرة
             if (text.contains(target, ignoreCase = true) || contentDesc.contains(target, ignoreCase = true)) {
                 val rect = Rect()
                 node.getBoundsInScreen(rect)
@@ -136,7 +135,6 @@ class AutoClickService : AccessibilityService() {
             }
         }
 
-        // البحث داخل العقد والأبناء بشكل كامل
         for (i in 0 until node.childCount) {
             val child = node.getChild(i)
             if (child != null) {
@@ -185,4 +183,3 @@ class AutoClickService : AccessibilityService() {
         }
     }
 }
-
