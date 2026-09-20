@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Path
 import android.graphics.PixelFormat
+import android.graphics.Rect
 import android.net.Uri
 import android.os.Build
 import android.os.Handler
@@ -15,6 +16,7 @@ import android.provider.Settings
 import android.view.Gravity
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.Switch
 import android.widget.Toast
 
@@ -25,21 +27,19 @@ class AutoClickService : AccessibilityService() {
     private val handler = Handler(Looper.getMainLooper())
     private var isClickingActive = false
 
-    private val clickRunnable = object : Runnable {
+    // الكلمات المستهدفة التي طلبتها للبحث والضغط عليها تلقائياً
+    private val targetWords = listOf("Accept", "DETAILS", "CLAIM", "IT", "VIEW") 
+
+    private val scanAndClickRunnable = object : Runnable {
         override fun run() {
             if (isClickingActive) {
-                // 1. النقرة الأولى على الإحداثيات (549, 889)
-                clickOnCoordinates(549f, 889f)
-
-                // 2. النقرة الثانية بعد 220 ميلي ثانية على الإحداثيات (593, 1453)
-                handler.postDelayed({
-                    if (isClickingActive) {
-                        clickOnCoordinates(593f, 1453f)
-                    }
-                }, 220)
-
-                // تكرار الحلقة باستمرار
-                handler.postDelayed(this, 600)
+                val rootNode = rootInActiveWindow
+                if (rootNode != null) {
+                    findAndClickNodeByText(rootNode)
+                    rootNode.recycle()
+                }
+                // إعادة الفحص كل ثانية للبحث عن الكلمات والضغط عليها فور ظهورها
+                handler.postDelayed(this, 1000)
             }
         }
     }
@@ -57,13 +57,11 @@ class AutoClickService : AccessibilityService() {
         }
         serviceInfo = info
 
-        // التحقق من صلاحية النافذة العائمة، وإذا لم تكن مجهزة يتم فتح إعداداتها فوراً
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
             val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             startActivity(intent)
-            Toast.makeText(this, "يرجى السماح بالتطبيق بالظهور فوق التطبيقات", Toast.LENGTH_LONG).show()
         } else {
             showFloatingWindow()
         }
@@ -75,7 +73,7 @@ class AutoClickService : AccessibilityService() {
             windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
             floatingSwitch = Switch(this).apply {
-                text = " التكبيس المستمر "
+                text = " البحث والضغط الذكي "
                 isChecked = false
                 setTextColor(android.graphics.Color.WHITE)
                 setBackgroundColor(android.graphics.Color.parseColor("#CC000000"))
@@ -83,11 +81,11 @@ class AutoClickService : AccessibilityService() {
                 setOnCheckedChangeListener { _, isChecked ->
                     isClickingActive = isChecked
                     if (isChecked) {
-                        Toast.makeText(this@AutoClickService, "تم بدء التكبيس المستمر", Toast.LENGTH_SHORT).show()
-                        handler.post(clickRunnable)
+                        Toast.makeText(this@AutoClickService, "تم بدء البحث عن الكلمات المطلوبة", Toast.LENGTH_SHORT).show()
+                        handler.post(scanAndClickRunnable)
                     } else {
-                        Toast.makeText(this@AutoClickService, "تم إيقاف التكبيس", Toast.LENGTH_SHORT).show()
-                        handler.removeCallbacks(clickRunnable)
+                        Toast.makeText(this@AutoClickService, "تم إيقاف البحث", Toast.LENGTH_SHORT).show()
+                        handler.removeCallbacks(scanAndClickRunnable)
                     }
                 }
             }
@@ -116,12 +114,43 @@ class AutoClickService : AccessibilityService() {
         }
     }
 
+    private fun findAndClickNodeByText(node: AccessibilityNodeInfo) {
+        val text = node.text?.toString() ?: ""
+        val contentDesc = node.contentDescription?.toString() ?: ""
+
+        // التحقق مما إذا كانت العقدة تحتوي على إحدى الكلمات المستهدفة (بغض النظر عن حالة الأحرف)
+        for (target in targetWords) {
+            if (text.contains(target, ignoreCase = true) || contentDesc.contains(target, ignoreCase = true)) {
+                val rect = Rect()
+                node.getBoundsInScreen(rect)
+                if (!rect.isEmpty) {
+                    val centerX = rect.exactCenterX()
+                    val centerY = rect.exactCenterY()
+                    
+                    // محاكاة الضغط على مركز الكلمة مباشرة
+                    clickOnCoordinates(centerX, centerY)
+                    return 
+                }
+            }
+        }
+
+        // البحث التنازلي داخل العناصر الفرعية
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i)
+            if (child != null) {
+                findAndClickNodeByText(child)
+                child.recycle()
+            }
+        }
+    }
+
     private fun clickOnCoordinates(x: Float, y: Float) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             val path = Path().apply {
                 moveTo(x, y)
+                lineTo(x, y)
             }
-            val stroke = GestureDescription.StrokeDescription(path, 0, 50)
+            val stroke = GestureDescription.StrokeDescription(path, 0, 100)
             val desc = GestureDescription.Builder().addStroke(stroke).build()
             dispatchGesture(desc, null, null)
         }
