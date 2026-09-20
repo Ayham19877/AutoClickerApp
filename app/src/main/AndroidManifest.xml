@@ -2,6 +2,8 @@ package com.example.autoclicker
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
+import android.graphics.Path
+import android.graphics.Rect
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 
@@ -14,7 +16,6 @@ class AutoClickService : AccessibilityService() {
         val sourceNode = event.source
 
         val keywordsString = getSavedKeywords()
-        // تنظيف الكلمات وحذف أي فراغات أو فواصل زائدة
         val keywords = keywordsString.split(",").map { it.trim() }.filter { it.isNotEmpty() }
 
         for (keyword in keywords) {
@@ -59,22 +60,39 @@ class AutoClickService : AccessibilityService() {
     private fun triggerAlertAndClick(node: AccessibilityNodeInfo) {
         var target: AccessibilityNodeInfo? = node
         
-        // الصعود للأعلى للبحث عن أول عنصر قابل للنقر (مثل الزر الأزرق VIEW في Zifty)
+        // المحاولة الأولى: الصعود للأب للبحث عن عنصر قابل للنقر تقليدياً
         while (target != null) {
             if (target.isClickable) {
-                target.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                return
+                if (target.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                    return
+                }
             }
             target = target.parent
         }
-        
-        // إذا لم يُعثر على أب قابل للنقر، نقوم بالضغط المباشر على العنصر نفسه
-        node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+
+        // المحاولة الثانية (الحاسمة لتطبيقات Zifty و Expedite): الضغط بالإحداثيات عبر الشاشة
+        val rect = Rect()
+        node.getBoundsInScreen(rect)
+        if (!rect.isEmpty) {
+            clickOnCoordinates(rect.exactCenterX(), rect.exactCenterY())
+        } else {
+            node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+        }
+    }
+
+    private fun clickOnCoordinates(x: Float, y: Float) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            val path = Path().apply {
+                moveTo(x, y)
+            }
+            val stroke = GestureDescription.StrokeDescription(path, 0, 50)
+            val desc = GestureDescription.Builder().addStroke(stroke).build()
+            dispatchGesture(desc, null, null)
+        }
     }
 
     private fun getSavedKeywords(): String {
         val prefs = getSharedPreferences("AutoClickerPrefs", MODE_PRIVATE)
-        // قراءة الكلمات التي أدخلها المستخدم فعلياً في التطبيق بدون فرض كلمات افتراضية تعيقها
         return prefs.getString("keywords", "Accept, DETAILS, CLAIM, IT, VIEW, pickup") ?: ""
     }
 
