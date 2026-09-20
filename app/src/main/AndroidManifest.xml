@@ -2,6 +2,7 @@ package com.example.autoclicker
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
+import android.accessibilityservice.GestureDescription
 import android.graphics.Path
 import android.graphics.Rect
 import android.view.accessibility.AccessibilityEvent
@@ -58,24 +59,20 @@ class AutoClickService : AccessibilityService() {
     }
 
     private fun triggerAlertAndClick(node: AccessibilityNodeInfo) {
-        var target: AccessibilityNodeInfo? = node
-        
-        // المحاولة الأولى: الصعود للأب للبحث عن عنصر قابل للنقر تقليدياً
-        while (target != null) {
-            if (target.isClickable) {
-                if (target.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
-                    return
-                }
-            }
-            target = target.parent
-        }
-
-        // المحاولة الثانية (الحاسمة لتطبيقات Zifty و Expedite): الضغط بالإحداثيات عبر الشاشة
         val rect = Rect()
         node.getBoundsInScreen(rect)
+
         if (!rect.isEmpty) {
             clickOnCoordinates(rect.exactCenterX(), rect.exactCenterY())
         } else {
+            var target: AccessibilityNodeInfo? = node
+            while (target != null) {
+                if (target.isClickable) {
+                    target.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                    return
+                }
+                target = target.parent
+            }
             node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
         }
     }
@@ -87,7 +84,14 @@ class AutoClickService : AccessibilityService() {
             }
             val stroke = GestureDescription.StrokeDescription(path, 0, 50)
             val desc = GestureDescription.Builder().addStroke(stroke).build()
-            dispatchGesture(desc, null, null)
+            dispatchGesture(desc, object : GestureResultCallback() {
+                override fun onCompleted(gestureDescription: GestureDescription?) {
+                    super.onCompleted(gestureDescription)
+                }
+                override fun onCancelled(gestureDescription: GestureDescription?) {
+                    super.onCancelled(gestureDescription)
+                }
+            }, null)
         }
     }
 
@@ -106,6 +110,7 @@ class AutoClickService : AccessibilityService() {
             flags = AccessibilityServiceInfo.FLAG_DEFAULT or
                     AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS or
                     AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS
+            capabilities = AccessibilityServiceInfo.CAPABILITY_CAN_PERFORM_GESTURES
             notificationTimeout = 0
         }
         serviceInfo = info
