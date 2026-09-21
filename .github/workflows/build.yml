@@ -270,6 +270,25 @@ jobs:
                     android:padding="12dp"
                     android:background="#E0F2F1"
                     android:layout_marginBottom="10dp">
+    <!-- خانة الحد الأدنى للمبلغ -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="الحد الأدنى للمبلغ (اختياري):"
+        android:textSize="14sp"
+        android:layout_marginBottom="4dp"
+        android:textColor="#E91E63"
+        android:textStyle="bold"/>
+
+    <EditText
+        android:id="@+id/etMinAmount"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="مثال: 50"
+        android:inputType="numberDecimal"
+        android:padding="10dp"
+        android:background="@android:drawable/editbox_background_normal"
+        android:layout_marginBottom="12dp"/>
 
                     <TextView
                         android:layout_width="0dp"
