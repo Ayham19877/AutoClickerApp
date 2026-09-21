@@ -83,8 +83,8 @@ jobs:
                 applicationId "com.example.autoclicker"
                 minSdk 24
                 targetSdk 33
-                versionCode 20
-                versionName "20.0"
+                versionCode 21
+                versionName "21.0"
             }
 
             compileOptions {
@@ -558,18 +558,17 @@ jobs:
                 SharedPreferences prefs = getSharedPreferences("AutoClickerPrefs", MODE_PRIVATE);
                 if (!prefs.getBoolean("is_enabled", true)) return;
 
-                String minAmountStr = prefs.getString("min_amount", "").trim();
-                if (minAmountStr.isEmpty()) return;
-
+                String minAmountStr = prefs.getString("min_amount", "40").trim();
                 double minAmount = 40.0;
                 try {
-                    minAmount = Double.parseDouble(minAmountStr);
+                    if (!minAmountStr.isEmpty()) {
+                        minAmount = Double.parseDouble(minAmountStr);
+                    }
                 } catch (Exception ignored) {}
 
                 AccessibilityNodeInfo rootNode = getRootInActiveWindow();
                 if (rootNode == null) return;
 
-                // فحص كافة النصوص في النافذة بحثاً عن أرقام مطابقة أو أكبر من الحد الأدنى
                 AccessibilityNodeInfo targetNode = findNodeMatchingPrice(rootNode, minAmount);
                 if (targetNode != null && targetNode.isVisibleToUser()) {
                     
@@ -585,10 +584,11 @@ jobs:
                     final boolean soundOn = prefs.getBoolean("sound_enabled", true);
                     final boolean notifOn = prefs.getBoolean("notification_enabled", true);
                     final String soundUriStr = prefs.getString("custom_sound_uri", null);
+                    final double matchedVal = minAmount;
 
                     asyncExecutor.execute(() -> {
                         if (soundOn) playCustomSound(soundUriStr);
-                        if (notifOn) sendNotification(minAmount, clickActionEnabled);
+                        if (notifOn) sendNotification(matchedVal, clickActionEnabled);
                     });
                 }
                 rootNode.recycle();
@@ -670,7 +670,6 @@ jobs:
 
                 String textMsg = clicked ? "تم رصد ونقر طلب أكبر من أو يساوي: " + minAmount : "تم رصد طلب مناسب (بدون كبس): " + minAmount;
 
-                NotificationCompat.ButtonCompat builder = null; // سيتم استخدام الكلاس الاعتيادي
                 NotificationCompat.Builder notifBuilder = new NotificationCompat.Builder(this, CHANNEL_ID)
                         .setSmallIcon(android.R.drawable.stat_notify_chat)
                         .setContentTitle("برمجة الأيهم - تنبيه السعر")
