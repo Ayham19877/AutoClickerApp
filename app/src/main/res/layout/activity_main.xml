@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="20dp"
+    android:background="#FAFAFA">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="إعدادات الكبس والتنبيه"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="#333333"
+        android:gravity="center"
+        android:layout_marginBottom="20dp"/>
+
+    <!-- مفتاح تفعيل الخدمة -->
+    <Switch
+        android:id="@+id/switchService"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="تفعيل الخدمة العامة:"
+        android:textSize="16sp"
+        android:paddingVertical="10dp"/>
+
+    <!-- مفتاح الكبس التلقائي -->
+    <Switch
+        android:id="@+id/switchAutoClick"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="تفعيل الكبس التلقائي:"
+        android:textSize="16sp"
+        android:paddingVertical="10dp"/>
+
+    <!-- مفتاح الصوت -->
+    <Switch
+        android:id="@+id/switchSound"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="التنبيه الصوتي:"
+        android:textSize="16sp"
+        android:paddingVertical="10dp"/>
+
+    <!-- مفتاح الاهتزاز -->
+    <Switch
+        android:id="@+id/switchVibrate"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="الاهتزاز:"
+        android:textSize="16sp"
+        android:paddingVertical="10dp"/>
+
+    <!-- خانة الكلمات المستهدفة -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="الكلمات المستهدفة (افصل بينها بفاصلة):"
+        android:textSize="14sp"
+        android:layout_marginTop="15dp"/>
+
+    <EditText
+        android:id="@+id/etWords"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Accept, DETAILS, CLAIM, IT, VIEW"
+        android:inputType="text"
+        android:padding="12dp"
+        android:layout_marginTop="5dp"/>
+
+    <!-- خانة الحد الأدنى للمبلغ -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="الحد الأدنى للمبلغ (اختياري - اتركه فارغاً للكل):"
+        android:textSize="14sp"
+        android:layout_marginTop="15dp"/>
+
+    <EditText
+        android:id="@+id/etMinAmount"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="مثال: 50"
+        android:inputType="numberDecimal"
+        android:padding="12dp"
+        android:layout_marginTop="5dp"/>
+
+    <!-- زر الحفظ -->
+    <Button
+        android:id="@+id/btnSave"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="حفظ التغييرات"
+        android:backgroundTint="#FF9800"
+        android:textColor="#FFFFFF"
+        android:layout_marginTop="20dp"/>
+
+</LinearLayout>
+
