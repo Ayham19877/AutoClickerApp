@@ -4,7 +4,8 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="20dp"
-    android:background="#FAFAFA">
+    android:background="#FAFAFA"
+    android:scrollbars="vertical">
 
     <TextView
         android:layout_width="match_parent"
@@ -14,7 +15,7 @@
         android:textStyle="bold"
         android:textColor="#333333"
         android:gravity="center"
-        android:layout_marginBottom="20dp"/>
+        android:layout_marginBottom="15dp"/>
 
     <!-- مفتاح تفعيل الخدمة -->
     <Switch
@@ -23,7 +24,7 @@
         android:layout_height="wrap_content"
         android:text="تفعيل الخدمة العامة:"
         android:textSize="16sp"
-        android:paddingVertical="10dp"/>
+        android:paddingVertical="8dp"/>
 
     <!-- مفتاح الكبس التلقائي -->
     <Switch
@@ -32,7 +33,7 @@
         android:layout_height="wrap_content"
         android:text="تفعيل الكبس التلقائي:"
         android:textSize="16sp"
-        android:paddingVertical="10dp"/>
+        android:paddingVertical="8dp"/>
 
     <!-- مفتاح الصوت -->
     <Switch
@@ -41,7 +42,7 @@
         android:layout_height="wrap_content"
         android:text="التنبيه الصوتي:"
         android:textSize="16sp"
-        android:paddingVertical="10dp"/>
+        android:paddingVertical="8dp"/>
 
     <!-- مفتاح الاهتزاز -->
     <Switch
@@ -50,7 +51,7 @@
         android:layout_height="wrap_content"
         android:text="الاهتزاز:"
         android:textSize="16sp"
-        android:paddingVertical="10dp"/>
+        android:paddingVertical="8dp"/>
 
     <!-- خانة الكلمات المستهدفة -->
     <TextView
@@ -58,7 +59,7 @@
         android:layout_height="wrap_content"
         android:text="الكلمات المستهدفة (افصل بينها بفاصلة):"
         android:textSize="14sp"
-        android:layout_marginTop="15dp"/>
+        android:layout_marginTop="10dp"/>
 
     <EditText
         android:id="@+id/etWords"
@@ -66,8 +67,8 @@
         android:layout_height="wrap_content"
         android:hint="Accept, DETAILS, CLAIM, IT, VIEW"
         android:inputType="text"
-        android:padding="12dp"
-        android:layout_marginTop="5dp"/>
+        android:padding="10dp"
+        android:layout_marginTop="3dp"/>
 
     <!-- خانة الحد الأدنى للمبلغ -->
     <TextView
@@ -75,7 +76,9 @@
         android:layout_height="wrap_content"
         android:text="الحد الأدنى للمبلغ (اختياري - اتركه فارغاً للكل):"
         android:textSize="14sp"
-        android:layout_marginTop="15dp"/>
+        android:layout_marginTop="10dp"
+        android:textColor="#E91E63"
+        android:textStyle="bold"/>
 
     <EditText
         android:id="@+id/etMinAmount"
@@ -83,8 +86,8 @@
         android:layout_height="wrap_content"
         android:hint="مثال: 50"
         android:inputType="numberDecimal"
-        android:padding="12dp"
-        android:layout_marginTop="5dp"/>
+        android:padding="10dp"
+        android:layout_marginTop="3dp"/>
 
     <!-- زر الحفظ -->
     <Button
@@ -94,7 +97,6 @@
         android:text="حفظ التغييرات"
         android:backgroundTint="#FF9800"
         android:textColor="#FFFFFF"
-        android:layout_marginTop="20dp"/>
+        android:layout_marginTop="15dp"/>
 
 </LinearLayout>
-
