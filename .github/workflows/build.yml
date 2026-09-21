@@ -83,8 +83,8 @@ jobs:
                 applicationId "com.example.autoclicker"
                 minSdk 24
                 targetSdk 33
-                versionCode 19
-                versionName "19.0"
+                versionCode 20
+                versionName "20.0"
             }
 
             compileOptions {
@@ -207,7 +207,7 @@ jobs:
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="تطبيق النقر التلقائي الفائق"
+                    android:text="تطبيق النقر التلقائي الذكي"
                     android:textSize="22sp"
                     android:textStyle="bold"/>
 
@@ -297,7 +297,7 @@ jobs:
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="الصوت عند ظهور الكلمة:"
+                        android:text="الصوت عند ظهور الطلب المناسب:"
                         android:textSize="15sp" />
 
                     <androidx.appcompat.widget.SwitchCompat
@@ -328,7 +328,7 @@ jobs:
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="إشعار عند ظهور الكلمة:"
+                        android:text="إشعار عند ظهور الطلب المناسب:"
                         android:textSize="15sp" />
 
                     <androidx.appcompat.widget.SwitchCompat
@@ -357,8 +357,8 @@ jobs:
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="الحد الأدنى للمبلغ (اختياري):"
-                    android:textSize="14sp"
+                    android:text="الحد الأدنى للسعر (مثال: 40):"
+                    android:textSize="15sp"
                     android:layout_marginBottom="4dp"
                     android:textColor="#E91E63"
                     android:textStyle="bold"/>
@@ -367,35 +367,19 @@ jobs:
                     android:id="@+id/etMinAmount"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="مثال: 50"
+                    android:hint="40"
                     android:inputType="numberDecimal"
-                    android:padding="10dp"
-                    android:background="@android:drawable/editbox_background_normal"
-                    android:layout_marginBottom="12dp"/>
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="أدخل الكلمات وافصل بينها بفاصلة (، أو ,):"
-                    android:textSize="14sp"
-                    android:layout_marginBottom="8dp"/>
-
-                <EditText
-                    android:id="@+id/etWords"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:hint="مثال: Accept, Confirm, Done"
-                    android:inputType="textMultiLine"
-                    android:minLines="2"
                     android:padding="12dp"
-                    android:background="@android:drawable/editbox_background"
-                    android:layout_marginBottom="16dp"/>
+                    android:background="@android:drawable/editbox_background_normal"
+                    android:layout_marginBottom="20dp"/>
 
                 <Button
                     android:id="@+id/btnSave"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="حفظ التغييرات"
+                    android:text="حفظ الإعدادات"
+                    android:backgroundTint="#3F51B5"
+                    android:textColor="#FFFFFF"
                     android:layout_marginBottom="10dp"/>
 
                 <Button
@@ -404,6 +388,7 @@ jobs:
                     android:layout_height="wrap_content"
                     android:text="إعدادات إمكانية الوصول"
                     android:backgroundTint="#4CAF50"
+                    android:textColor="#FFFFFF"
                     android:layout_marginBottom="20dp"/>
 
                 <TextView
@@ -447,7 +432,7 @@ jobs:
         public class MainActivity extends AppCompatActivity {
 
             private static final int RINGTONE_PICKER_REQUEST = 999;
-            private EditText etWords, etClickSpeed, etMinAmount;
+            private EditText etClickSpeed, etMinAmount;
             private SwitchCompat switchEnable, switchClickAction, switchSound, switchNotification;
             private SharedPreferences prefs;
 
@@ -456,7 +441,6 @@ jobs:
                 super.onCreate(savedInstanceState);
                 setContentView(R.layout.activity_main);
 
-                etWords = findViewById(R.id.etWords);
                 etClickSpeed = findViewById(R.id.etClickSpeed);
                 etMinAmount = findViewById(R.id.etMinAmount);
                 switchEnable = findViewById(R.id.switchEnable);
@@ -470,9 +454,8 @@ jobs:
 
                 prefs = getSharedPreferences("AutoClickerPrefs", MODE_PRIVATE);
 
-                etWords.setText(prefs.getString("words_list", "Accept, Confirm, Done"));
                 etClickSpeed.setText(String.valueOf(prefs.getInt("click_speed_ms", 1)));
-                etMinAmount.setText(prefs.getString("min_amount", ""));
+                etMinAmount.setText(prefs.getString("min_amount", "40"));
                 switchEnable.setChecked(prefs.getBoolean("is_enabled", true));
                 switchClickAction.setChecked(prefs.getBoolean("click_action_enabled", true));
                 switchSound.setChecked(prefs.getBoolean("sound_enabled", true));
@@ -486,7 +469,7 @@ jobs:
                 btnSelectRingtone.setOnClickListener(v -> {
                     Intent intent = new Intent(RingtoneManager.ACTION_RINGTONE_PICKER);
                     intent.putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_NOTIFICATION);
-                    intent.putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "اختر نغمة ظهور الكلمة");
+                    intent.putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "اختر نغمة التنبيه الخاصة");
                     String existingUri = prefs.getString("custom_sound_uri", null);
                     if (existingUri != null) {
                         intent.putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, Uri.parse(existingUri));
@@ -495,7 +478,6 @@ jobs:
                 });
 
                 btnSave.setOnClickListener(v -> {
-                    String words = etWords.getText().toString().trim();
                     String speedStr = etClickSpeed.getText().toString().trim();
                     String minAmountStr = etMinAmount.getText().toString().trim();
                     int speed = 1;
@@ -503,15 +485,14 @@ jobs:
                         if (!speedStr.isEmpty()) speed = Integer.parseInt(speedStr);
                     } catch (Exception ignored) {}
 
-                    if (!words.isEmpty()) {
+                    if (!minAmountStr.isEmpty()) {
                         prefs.edit()
-                            .putString("words_list", words)
                             .putInt("click_speed_ms", speed)
                             .putString("min_amount", minAmountStr)
                             .apply();
-                        Toast.makeText(MainActivity.this, "تم حفظ الإعدادات بنجاح (برمجة الأيهم)", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(MainActivity.this, "تم حفظ حد السعر بنجاح (برمجة الأيهم)", Toast.LENGTH_SHORT).show();
                     } else {
-                        Toast.makeText(MainActivity.this, "الرجاء إدخال كلمة واحدة على الأقل", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(MainActivity.this, "الرجاء إدخال الحد الأدنى للسعر", Toast.LENGTH_SHORT).show();
                     }
                 });
 
@@ -553,7 +534,6 @@ jobs:
         import android.view.accessibility.AccessibilityEvent;
         import android.view.accessibility.AccessibilityNodeInfo;
         import androidx.core.app.NotificationCompat;
-        import java.util.List;
         import java.util.concurrent.ExecutorService;
         import java.util.concurrent.Executors;
         import java.util.regex.Matcher;
@@ -561,7 +541,6 @@ jobs:
 
         public class AutoClickService extends AccessibilityService {
 
-            private int currentStep = 0;
             private static final String CHANNEL_ID = "AutoClickerChannel";
             private final ExecutorService asyncExecutor = Executors.newSingleThreadExecutor();
             private long lastClickTime = 0;
@@ -569,7 +548,7 @@ jobs:
             @Override
             public void onAccessibilityEvent(AccessibilityEvent event) {
                 long currentTime = System.currentTimeMillis();
-                if (currentTime - lastClickTime < 20) return;
+                if (currentTime - lastClickTime < 500) return;
 
                 CharSequence packageName = event.getPackageName();
                 if (packageName != null && packageName.toString().equals("com.example.autoclicker")) {
@@ -579,76 +558,63 @@ jobs:
                 SharedPreferences prefs = getSharedPreferences("AutoClickerPrefs", MODE_PRIVATE);
                 if (!prefs.getBoolean("is_enabled", true)) return;
 
-                String rawWords = prefs.getString("words_list", "");
-                if (rawWords.isEmpty()) return;
+                String minAmountStr = prefs.getString("min_amount", "").trim();
+                if (minAmountStr.isEmpty()) return;
 
-                String[] words = rawWords.split("[,،]");
-                if (words.length == 0) return;
-
-                if (currentStep >= words.length) currentStep = 0;
-                String targetWord = words[currentStep].trim();
-                if (targetWord.isEmpty()) return;
+                double minAmount = 40.0;
+                try {
+                    minAmount = Double.parseDouble(minAmountStr);
+                } catch (Exception ignored) {}
 
                 AccessibilityNodeInfo rootNode = getRootInActiveWindow();
                 if (rootNode == null) return;
 
-                List<AccessibilityNodeInfo> foundNodes = rootNode.findAccessibilityNodeInfosByText(targetWord);
-                if (foundNodes != null && !foundNodes.isEmpty()) {
-                    for (AccessibilityNodeInfo node : foundNodes) {
-                        if (node != null && node.isVisibleToUser()) {
-                            
-                            String minAmountStr = prefs.getString("min_amount", "").trim();
-                            if (!minAmountStr.isEmpty()) {
-                                try {
-                                    double minAmount = Double.parseDouble(minAmountStr);
-                                    String fullWindowText = getAllNodeText(rootNode);
-                                    double detectedPrice = extractFirstNumber(fullWindowText);
-                                    if (detectedPrice > 0 && detectedPrice < minAmount) {
-                                        continue;
-                                    }
-                                } catch (Exception ignored) {}
-                            }
+                // فحص كافة النصوص في النافذة بحثاً عن أرقام مطابقة أو أكبر من الحد الأدنى
+                AccessibilityNodeInfo targetNode = findNodeMatchingPrice(rootNode, minAmount);
+                if (targetNode != null && targetNode.isVisibleToUser()) {
+                    
+                    boolean clickActionEnabled = prefs.getBoolean("click_action_enabled", true);
+                    int clickSpeed = prefs.getInt("click_speed_ms", 1);
 
-                            boolean clickActionEnabled = prefs.getBoolean("click_action_enabled", true);
-                            int clickSpeed = prefs.getInt("click_speed_ms", 1);
-
-                            if (clickActionEnabled) {
-                                executeFastClick(node, clickSpeed);
-                            }
-
-                            lastClickTime = System.currentTimeMillis();
-                            currentStep++;
-                            if (currentStep >= words.length) currentStep = 0;
-
-                            final boolean soundOn = prefs.getBoolean("sound_enabled", true);
-                            final boolean notifOn = prefs.getBoolean("notification_enabled", true);
-                            final String soundUriStr = prefs.getString("custom_sound_uri", null);
-                            final String wordMatched = targetWord;
-
-                            asyncExecutor.execute(() -> {
-                                if (soundOn) playCustomSound(soundUriStr);
-                                if (notifOn) sendNotification(wordMatched, clickActionEnabled);
-                            });
-                            break;
-                        }
+                    if (clickActionEnabled) {
+                        executeFastClick(targetNode, clickSpeed);
                     }
+
+                    lastClickTime = System.currentTimeMillis();
+
+                    final boolean soundOn = prefs.getBoolean("sound_enabled", true);
+                    final boolean notifOn = prefs.getBoolean("notification_enabled", true);
+                    final String soundUriStr = prefs.getString("custom_sound_uri", null);
+
+                    asyncExecutor.execute(() -> {
+                        if (soundOn) playCustomSound(soundUriStr);
+                        if (notifOn) sendNotification(minAmount, clickActionEnabled);
+                    });
                 }
                 rootNode.recycle();
             }
 
-            private String getAllNodeText(AccessibilityNodeInfo node) {
-                if (node == null) return "";
-                StringBuilder sb = new StringBuilder();
-                if (node.getText() != null) {
-                    sb.append(node.getText().toString()).append(" ");
+            private AccessibilityNodeInfo findNodeMatchingPrice(AccessibilityNodeInfo node, double minAmount) {
+                if (node == null) return null;
+
+                CharSequence text = node.getText();
+                if (text != null) {
+                    double val = extractNumber(text.toString());
+                    if (val >= minAmount) {
+                        return node;
+                    }
                 }
+
                 for (int i = 0; i < node.getChildCount(); i++) {
-                    sb.append(getAllNodeText(node.getChild(i))).append(" ");
+                    AccessibilityNodeInfo found = findNodeMatchingPrice(node.getChild(i), minAmount);
+                    if (found != null) {
+                        return found;
+                    }
                 }
-                return sb.toString();
+                return null;
             }
 
-            private double extractFirstNumber(String text) {
+            private double extractNumber(String text) {
                 try {
                     Pattern pattern = Pattern.compile("(\\d+([.,]\\d+)?)");
                     Matcher matcher = pattern.matcher(text);
@@ -695,24 +661,25 @@ jobs:
                 }
             }
 
-            private void sendNotification(String word, boolean clicked) {
+            private void sendNotification(double minAmount, boolean clicked) {
                 NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Word Detect Alert", NotificationManager.IMPORTANCE_HIGH);
+                    NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Price Detect Alert", NotificationManager.IMPORTANCE_HIGH);
                     if (manager != null) manager.createNotificationChannel(channel);
                 }
 
-                String textMsg = clicked ? "تم الكشف والنقر على: " + word : "تم الكشف عن الكلمة (بدون كبس): " + word;
+                String textMsg = clicked ? "تم رصد ونقر طلب أكبر من أو يساوي: " + minAmount : "تم رصد طلب مناسب (بدون كبس): " + minAmount;
 
-                NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
+                NotificationCompat.ButtonCompat builder = null; // سيتم استخدام الكلاس الاعتيادي
+                NotificationCompat.Builder notifBuilder = new NotificationCompat.Builder(this, CHANNEL_ID)
                         .setSmallIcon(android.R.drawable.stat_notify_chat)
-                        .setContentTitle("برمجة الأيهم")
+                        .setContentTitle("برمجة الأيهم - تنبيه السعر")
                         .setContentText(textMsg)
                         .setPriority(NotificationCompat.PRIORITY_HIGH)
                         .setAutoCancel(true);
 
                 if (manager != null) {
-                    manager.notify((int) System.currentTimeMillis(), builder.build());
+                    manager.notify((int) System.currentTimeMillis(), notifBuilder.build());
                 }
             }
 
