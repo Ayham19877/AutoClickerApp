@@ -83,8 +83,8 @@ jobs:
                 applicationId "com.example.autoclicker"
                 minSdk 24
                 targetSdk 33
-                versionCode 18
-                versionName "18.0"
+                versionCode 19
+                versionName "19.0"
             }
 
             compileOptions {
@@ -261,7 +261,6 @@ jobs:
                         android:layout_height="wrap_content"/>
                 </LinearLayout>
 
-                <!-- خيار تفعيل او ايقاف الكبس الفعلي -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -338,7 +337,6 @@ jobs:
                         android:layout_height="wrap_content"/>
                 </LinearLayout>
 
-                <!-- خيار تحديد سرعة الكبسة (بالميلي ثانية) -->
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -356,7 +354,6 @@ jobs:
                     android:background="@android:drawable/editbox_background"
                     android:layout_marginBottom="12dp"/>
 
-                <!-- خانة الحد الأدنى للمبلغ -->
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -600,7 +597,6 @@ jobs:
                     for (AccessibilityNodeInfo node : foundNodes) {
                         if (node != null && node.isVisibleToUser()) {
                             
-                            // فحص شرط الحد الأدنى للسعر إذا تم إدخاله من المستخدم
                             String minAmountStr = prefs.getString("min_amount", "").trim();
                             if (!minAmountStr.isEmpty()) {
                                 try {
@@ -703,7 +699,7 @@ jobs:
                 NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Word Detect Alert", NotificationManager.IMPORTANCE_HIGH);
-                    if (manager != `null`) manager.createNotificationChannel(channel);
+                    if (manager != null) manager.createNotificationChannel(channel);
                 }
 
                 String textMsg = clicked ? "تم الكشف والنقر على: " + word : "تم الكشف عن الكلمة (بدون كبس): " + word;
