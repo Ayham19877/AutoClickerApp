@@ -1,4 +1,4 @@
-name: Build Android APK
+Name: Build Android APK
 
 on:
   push:
@@ -83,8 +83,8 @@ jobs:
                 applicationId "com.example.autoclicker"
                 minSdk 24
                 targetSdk 33
-                versionCode 17
-                versionName "17.0"
+                versionCode 18
+                versionName "18.0"
             }
 
             compileOptions {
@@ -270,25 +270,6 @@ jobs:
                     android:padding="12dp"
                     android:background="#E0F2F1"
                     android:layout_marginBottom="10dp">
-    <!-- خانة الحد الأدنى للمبلغ -->
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="الحد الأدنى للمبلغ (اختياري):"
-        android:textSize="14sp"
-        android:layout_marginBottom="4dp"
-        android:textColor="#E91E63"
-        android:textStyle="bold"/>
-
-    <EditText
-        android:id="@+id/etMinAmount"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="مثال: 50"
-        android:inputType="numberDecimal"
-        android:padding="10dp"
-        android:background="@android:drawable/editbox_background_normal"
-        android:layout_marginBottom="12dp"/>
 
                     <TextView
                         android:layout_width="0dp"
@@ -375,6 +356,26 @@ jobs:
                     android:background="@android:drawable/editbox_background"
                     android:layout_marginBottom="12dp"/>
 
+                <!-- خانة الحد الأدنى للمبلغ -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="الحد الأدنى للمبلغ (اختياري):"
+                    android:textSize="14sp"
+                    android:layout_marginBottom="4dp"
+                    android:textColor="#E91E63"
+                    android:textStyle="bold"/>
+
+                <EditText
+                    android:id="@+id/etMinAmount"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="مثال: 50"
+                    android:inputType="numberDecimal"
+                    android:padding="10dp"
+                    android:background="@android:drawable/editbox_background_normal"
+                    android:layout_marginBottom="12dp"/>
+
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -449,7 +450,7 @@ jobs:
         public class MainActivity extends AppCompatActivity {
 
             private static final int RINGTONE_PICKER_REQUEST = 999;
-            private EditText etWords, etClickSpeed;
+            private EditText etWords, etClickSpeed, etMinAmount;
             private SwitchCompat switchEnable, switchClickAction, switchSound, switchNotification;
             private SharedPreferences prefs;
 
@@ -460,6 +461,7 @@ jobs:
 
                 etWords = findViewById(R.id.etWords);
                 etClickSpeed = findViewById(R.id.etClickSpeed);
+                etMinAmount = findViewById(R.id.etMinAmount);
                 switchEnable = findViewById(R.id.switchEnable);
                 switchClickAction = findViewById(R.id.switchClickAction);
                 switchSound = findViewById(R.id.switchSound);
@@ -473,6 +475,7 @@ jobs:
 
                 etWords.setText(prefs.getString("words_list", "Accept, Confirm, Done"));
                 etClickSpeed.setText(String.valueOf(prefs.getInt("click_speed_ms", 1)));
+                etMinAmount.setText(prefs.getString("min_amount", ""));
                 switchEnable.setChecked(prefs.getBoolean("is_enabled", true));
                 switchClickAction.setChecked(prefs.getBoolean("click_action_enabled", true));
                 switchSound.setChecked(prefs.getBoolean("sound_enabled", true));
@@ -497,6 +500,7 @@ jobs:
                 btnSave.setOnClickListener(v -> {
                     String words = etWords.getText().toString().trim();
                     String speedStr = etClickSpeed.getText().toString().trim();
+                    String minAmountStr = etMinAmount.getText().toString().trim();
                     int speed = 1;
                     try {
                         if (!speedStr.isEmpty()) speed = Integer.parseInt(speedStr);
@@ -506,6 +510,7 @@ jobs:
                         prefs.edit()
                             .putString("words_list", words)
                             .putInt("click_speed_ms", speed)
+                            .putString("min_amount", minAmountStr)
                             .apply();
                         Toast.makeText(MainActivity.this, "تم حفظ الإعدادات بنجاح (برمجة الأيهم)", Toast.LENGTH_SHORT).show();
                     } else {
@@ -554,6 +559,8 @@ jobs:
         import java.util.List;
         import java.util.concurrent.ExecutorService;
         import java.util.concurrent.Executors;
+        import java.util.regex.Matcher;
+        import java.util.regex.Pattern;
 
         public class AutoClickService extends AccessibilityService {
 
@@ -592,6 +599,22 @@ jobs:
                 if (foundNodes != null && !foundNodes.isEmpty()) {
                     for (AccessibilityNodeInfo node : foundNodes) {
                         if (node != null && node.isVisibleToUser()) {
+                            
+                            // فحص شرط الحد الأدنى للسعر إذا تم إدخاله من المستخدم
+                            String minAmountStr = prefs.getString("min_amount", "").trim();
+                            if (!minAmountStr.isEmpty()) {
+                                try {
+                                    double minAmount = Double.parseDouble(minAmountStr);
+                                    // جمع النصوص المجاورة أو النص الحالي لاستخراج الأرقام
+                                    String fullWindowText = getAllNodeText(rootNode);
+                                    double detectedPrice = extractFirstNumber(fullWindowText);
+                                    // إذا وجدنا رقماً وكان أقل من الحد الأدنى، نتجاهل هذه النقطة
+                                    if (detectedPrice > 0 && detectedPrice < minAmount) {
+                                        continue;
+                                    }
+                                } catch (Exception ignored) {}
+                            }
+
                             boolean clickActionEnabled = prefs.getBoolean("click_action_enabled", true);
                             int clickSpeed = prefs.getInt("click_speed_ms", 1);
 
@@ -618,6 +641,30 @@ jobs:
                     }
                 }
                 rootNode.recycle();
+            }
+
+            private String getAllNodeText(AccessibilityNodeInfo node) {
+                if (node == null) return "";
+                StringBuilder sb = new StringBuilder();
+                if (node.getText() != null) {
+                    sb.append(node.getText().toString()).append(" ");
+                }
+                for (int i = 0; i < node.getChildCount(); i++) {
+                    sb.append(getAllNodeText(node.getChild(i))).append(" ");
+                }
+                return sb.toString();
+            }
+
+            private double extractFirstNumber(String text) {
+                try {
+                    Pattern pattern = Pattern.compile("(\\d+([.,]\\d+)?)");
+                    Matcher matcher = pattern.matcher(text);
+                    if (matcher.find()) {
+                        String numStr = matcher.group(1).replace(",", ".");
+                        return Double.parseDouble(numStr);
+                    }
+                } catch (Exception ignored) {}
+                return -1;
             }
 
             private void executeFastClick(AccessibilityNodeInfo node, int durationMs) {
