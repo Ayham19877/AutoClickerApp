@@ -83,8 +83,8 @@ jobs:
                 applicationId "com.example.autoclicker"
                 minSdk 24
                 targetSdk 33
-                versionCode 21
-                versionName "21.0"
+                versionCode 22
+                versionName "22.0"
             }
 
             compileOptions {
@@ -569,7 +569,7 @@ jobs:
                 AccessibilityNodeInfo rootNode = getRootInActiveWindow();
                 if (rootNode == null) return;
 
-                AccessibilityNodeInfo targetNode = findNodeMatchingPrice(rootNode, minAmount);
+                AccessibilityNodeInfo targetNode = findNodeMatchingEarnings(rootNode, minAmount);
                 if (targetNode != null && targetNode.isVisibleToUser()) {
                     
                     boolean clickActionEnabled = prefs.getBoolean("click_action_enabled", true);
@@ -594,19 +594,20 @@ jobs:
                 rootNode.recycle();
             }
 
-            private AccessibilityNodeInfo findNodeMatchingPrice(AccessibilityNodeInfo node, double minAmount) {
+            private AccessibilityNodeInfo findNodeMatchingEarnings(AccessibilityNodeInfo node, double minAmount) {
                 if (node == null) return null;
 
                 CharSequence text = node.getText();
                 if (text != null) {
-                    double val = extractNumber(text.toString());
-                    if (val >= minAmount) {
+                    String strText = text.toString();
+                    double earningsVal = extractEarningsAmount(strText);
+                    if (earningsVal >= minAmount) {
                         return node;
                     }
                 }
 
                 for (int i = 0; i < node.getChildCount(); i++) {
-                    AccessibilityNodeInfo found = findNodeMatchingPrice(node.getChild(i), minAmount);
+                    AccessibilityNodeInfo found = findNodeMatchingEarnings(node.getChild(i), minAmount);
                     if (found != null) {
                         return found;
                     }
@@ -614,9 +615,10 @@ jobs:
                 return null;
             }
 
-            private double extractNumber(String text) {
+            private double extractEarningsAmount(String text) {
                 try {
-                    Pattern pattern = Pattern.compile("(\\d+([.,]\\d+)?)");
+                    // يبحث حصراً عن رقم يتبع كلمة earnings (أو Earnings) أو يتبع رمز $ المخصص للأرباح
+                    Pattern pattern = Pattern.compile("(?i)(?:earnings|\\$)\\s*[:\\$]?\\s*(\\d+([.,]\\d+)?)");
                     Matcher matcher = pattern.matcher(text);
                     if (matcher.find()) {
                         String numStr = matcher.group(1).replace(",", ".");
@@ -664,15 +666,15 @@ jobs:
             private void sendNotification(double minAmount, boolean clicked) {
                 NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Price Detect Alert", NotificationManager.IMPORTANCE_HIGH);
+                    NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Earnings Alert", NotificationManager.IMPORTANCE_HIGH);
                     if (manager != null) manager.createNotificationChannel(channel);
                 }
 
-                String textMsg = clicked ? "تم رصد ونقر طلب أكبر من أو يساوي: " + minAmount : "تم رصد طلب مناسب (بدون كبس): " + minAmount;
+                String textMsg = clicked ? "تم رصد ونقر أرباح أكبر من أو تساوي: $" + minAmount : "تم رصد أرباح مناسبة (بدون كبس): $" + minAmount;
 
                 NotificationCompat.Builder notifBuilder = new NotificationCompat.Builder(this, CHANNEL_ID)
                         .setSmallIcon(android.R.drawable.stat_notify_chat)
-                        .setContentTitle("برمجة الأيهم - تنبيه السعر")
+                        .setContentTitle("برمجة الأيهم - تنبيه الأرباح")
                         .setContentText(textMsg)
                         .setPriority(NotificationCompat.PRIORITY_HIGH)
                         .setAutoCancel(true);
