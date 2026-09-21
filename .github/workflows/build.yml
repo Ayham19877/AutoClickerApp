@@ -1,4 +1,4 @@
-Name: Build Android APK
+name: Build Android APK
 
 on:
   push:
@@ -605,10 +605,8 @@ jobs:
                             if (!minAmountStr.isEmpty()) {
                                 try {
                                     double minAmount = Double.parseDouble(minAmountStr);
-                                    // جمع النصوص المجاورة أو النص الحالي لاستخراج الأرقام
                                     String fullWindowText = getAllNodeText(rootNode);
                                     double detectedPrice = extractFirstNumber(fullWindowText);
-                                    // إذا وجدنا رقماً وكان أقل من الحد الأدنى، نتجاهل هذه النقطة
                                     if (detectedPrice > 0 && detectedPrice < minAmount) {
                                         continue;
                                     }
@@ -618,7 +616,6 @@ jobs:
                             boolean clickActionEnabled = prefs.getBoolean("click_action_enabled", true);
                             int clickSpeed = prefs.getInt("click_speed_ms", 1);
 
-                            // إذا كان تفعيل الكبس مفعل يتم النقر، وإلا يكتفي بالصوت والإشعار فقط
                             if (clickActionEnabled) {
                                 executeFastClick(node, clickSpeed);
                             }
@@ -706,7 +703,7 @@ jobs:
                 NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Word Detect Alert", NotificationManager.IMPORTANCE_HIGH);
-                    if (manager != null) manager.createNotificationChannel(channel);
+                    if (manager != `null`) manager.createNotificationChannel(channel);
                 }
 
                 String textMsg = clicked ? "تم الكشف والنقر على: " + word : "تم الكشف عن الكلمة (بدون كبس): " + word;
@@ -741,3 +738,4 @@ jobs:
       with:
         name: AutoClicker-APK
         path: app/build/outputs/apk/debug/*.apk
+
